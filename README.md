@@ -1,0 +1,30 @@
+# layer_2_controllers
+
+`ros2 launch amr_sweeper_layer_2_controllers_bringup amr_sweeper_layer_2_controllers_bringup.launch.py`
+
+Dependencies to other AMR Sweeper packages:
+- `amr_sweeper_layer_2_controllers_bringup`
+- `amr_sweeper_joystick`
+- `amr_sweeper_twist_mux`
+- `amr_sweeper_wheel_controller`
+- `amr_sweeper_tool_controller`
+- `amr_sweeper_layer_1_hardware_bringup`
+
+## Purpose
+This repository is the controller layer for the AMR Sweeper. It turns human or autonomous motion commands into the specific command topics consumed by the layer 1 wheel and tool motor interfaces.
+
+## Launch Arguments
+- `namespace`: default `amr_sweeper`
+- `use_joystick`: default `true`
+- `use_twist_mux`: default `true`
+- `use_wheel_controller`: default `true`
+- `use_tool_controller`: default `true`
+- `joy_dev`: default `/dev/input/js0`
+
+## Overview
+Layer 2 sits between the hardware interfaces in layer 1 and the higher-level decision-making in layer 3. It contains the joystick input path, the command arbitration path for wheel motion, the relay into the wheel ODrive controller, and the brush/tool command mapper for the SteadyDrive tool motors.
+
+## Notes
+- The default command launches the full layer 2 controller bringup package.
+- Layer 2 assumes the relevant layer 1 interfaces are already running.
+- The wheel and tool controller packages forward commands into layer 1 interfaces rather than talking to hardware directly.

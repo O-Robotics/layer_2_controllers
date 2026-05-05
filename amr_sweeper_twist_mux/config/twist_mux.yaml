@@ -1,0 +1,19 @@
+/**/twist_mux:
+  ros__parameters:
+    topics:
+      navigation:
+        topic: cmd_vel_navigation_input_wheels
+        timeout: 0.5
+        priority: 5
+      autonomy:
+        topic: cmd_vel_camera
+        timeout: 0.5
+        priority: 10
+      debug:
+        topic: cmd_vel_debug
+        timeout: 0.5
+        priority: 10
+      joystick:
+        topic: cmd_vel_joy_wheels
+        timeout: 0.5
+        priority: 100
