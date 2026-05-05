@@ -1,6 +1,8 @@
 # layer_2_controllers
 
-```ros2 launch amr_sweeper_layer_2_controllers_bringup amr_sweeper_layer_2_controllers_bringup.launch.py```
+```
+ros2 launch amr_sweeper_layer_2_controllers_bringup amr_sweeper_layer_2_controllers_bringup.launch.py
+```
 
 Dependencies to other AMR Sweeper packages:
 - `amr_sweeper_layer_2_controllers_bringup`
