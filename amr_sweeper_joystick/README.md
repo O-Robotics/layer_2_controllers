@@ -1,6 +1,8 @@
 # amr_sweeper_joystick
 
-`ros2 launch amr_sweeper_joystick joystick.launch.py`
+```bash
+ros2 launch amr_sweeper_joystick joystick.launch.py
+```
 
 Dependencies to other AMR Sweeper packages:
 - None

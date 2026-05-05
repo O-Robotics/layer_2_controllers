@@ -1,6 +1,8 @@
 # amr_sweeper_tool_controller
 
-`ros2 launch amr_sweeper_tool_controller tool_controller.launch.py`
+```bash
+ros2 launch amr_sweeper_tool_controller tool_controller.launch.py
+```
 
 Dependencies to other AMR Sweeper packages:
 - `amr_sweeper_steadydrive`

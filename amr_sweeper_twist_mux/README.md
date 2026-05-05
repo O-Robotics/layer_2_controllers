@@ -1,6 +1,8 @@
 # amr_sweeper_twist_mux
 
-`ros2 launch amr_sweeper_twist_mux twist_mux.launch.py`
+```bash
+ros2 launch amr_sweeper_twist_mux twist_mux.launch.py
+```
 
 Dependencies to other AMR Sweeper packages:
 - None
