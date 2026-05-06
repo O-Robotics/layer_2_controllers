@@ -1,0 +1,471 @@
+#include "attitude_controller_node.hpp"
+
+#include <algorithm>
+#include <chrono>
+#include <cmath>
+#include <memory>
+#include <sstream>
+#include <string>
+#include <utility>
+
+#include "diagnostic_msgs/msg/diagnostic_status.hpp"
+#include "diagnostic_msgs/msg/key_value.hpp"
+#include "tf2/LinearMath/Quaternion.h"
+#include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
+
+namespace amr_sweeper_attitude_controller
+{
+
+namespace
+{
+
+diagnostic_msgs::msg::KeyValue keyValue(const std::string & key, const std::string & value)
+{
+  diagnostic_msgs::msg::KeyValue pair;
+  pair.key = key;
+  pair.value = value;
+  return pair;
+}
+
+diagnostic_msgs::msg::KeyValue keyValue(const std::string & key, const double value)
+{
+  std::ostringstream stream;
+  stream << value;
+  return keyValue(key, stream.str());
+}
+
+diagnostic_msgs::msg::DiagnosticStatus makeStatus(
+  const std::string & name,
+  const unsigned char level,
+  const std::string & message)
+{
+  diagnostic_msgs::msg::DiagnosticStatus status;
+  status.name = name;
+  status.hardware_id = "amr_sweeper_attitude_controller";
+  status.level = level;
+  status.message = message;
+  return status;
+}
+
+}  // namespace
+
+AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & options)
+: Node("amr_sweeper_attitude_controller_node", options),
+  estimator_(estimator_options_),
+  stop_supervisor_(stop_options_),
+  tf_buffer_(this->get_clock()),
+  tf_listener_(tf_buffer_)
+{
+  loadParameters();
+  estimator_.setOptions(estimator_options_);
+  stop_supervisor_.setOptions(stop_options_);
+
+  attitude_publisher_ = create_publisher<geometry_msgs::msg::Vector3Stamped>(
+    "attitude/roll_pitch", rclcpp::SystemDefaultsQoS());
+  attitude_diagnostics_publisher_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
+    "attitude/status", rclcpp::SystemDefaultsQoS());
+  safety_stop_publisher_ = create_publisher<std_msgs::msg::Bool>(
+    "safety_stop", rclcpp::SystemDefaultsQoS());
+  safety_diagnostics_publisher_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
+    "safety/status", rclcpp::SystemDefaultsQoS());
+
+  tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
+
+  reset_fault_service_ = create_service<std_srvs::srv::Trigger>(
+    "amr_sweeper_attitude_controller/reset_fault",
+    std::bind(
+      &AttitudeControllerNode::resetFaultService, this, std::placeholders::_1,
+      std::placeholders::_2));
+  enable_attitude_service_ = create_service<std_srvs::srv::SetBool>(
+    "amr_sweeper_attitude_controller/enable_attitude_estimation",
+    std::bind(
+      &AttitudeControllerNode::enableAttitudeEstimationService, this,
+      std::placeholders::_1, std::placeholders::_2));
+  enable_safety_service_ = create_service<std_srvs::srv::SetBool>(
+    "amr_sweeper_attitude_controller/enable_safety_stop",
+    std::bind(
+      &AttitudeControllerNode::enableSafetyStopService, this,
+      std::placeholders::_1, std::placeholders::_2));
+
+  configureImuInputs();
+
+  const auto timer_period = std::chrono::duration<double>(1.0 / publish_rate_hz_);
+  timer_ = create_wall_timer(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(timer_period),
+    std::bind(&AttitudeControllerNode::onTimer, this));
+}
+
+void AttitudeControllerNode::loadParameters()
+{
+  attitude_estimation_enabled_ = declare_parameter("attitude_estimation_enabled", true);
+  safety_stop_enabled_ = declare_parameter("safety_stop_enabled", false);
+
+  base_footprint_frame_ = declare_parameter("base_footprint_frame", "base_footprint");
+  base_link_frame_ = declare_parameter("base_link_frame", "base_link");
+  tool_link_frame_ = declare_parameter("tool_link_frame", "tool_link");
+
+  publish_base_link_tf_ = declare_parameter("publish_base_link_tf", true);
+  publish_tool_link_tf_ = declare_parameter("publish_tool_link_tf", false);
+
+  imu_topics_ = declare_parameter<std::vector<std::string>>(
+    "imu_topics", std::vector<std::string>{"imu/data_raw"});
+  imu_weights_ = declare_parameter<std::vector<double>>(
+    "imu_weights", std::vector<double>{1.0});
+
+  imu_timeout_sec_ = declare_parameter("imu_timeout_sec", 0.25);
+  publish_rate_hz_ = declare_parameter("publish_rate_hz", 50.0);
+  if (publish_rate_hz_ <= 0.0) {
+    RCLCPP_WARN(get_logger(), "publish_rate_hz must be positive; using 50.0 Hz");
+    publish_rate_hz_ = 50.0;
+  }
+
+  estimator_options_.filter_type = declare_parameter("filter.type", "complementary");
+  estimator_options_.accel_alpha = declare_parameter("filter.accel_alpha", 0.02);
+  estimator_options_.gyro_alpha = declare_parameter("filter.gyro_alpha", 0.98);
+  estimator_options_.max_accel_norm_error =
+    declare_parameter("filter.max_accel_norm_error", 2.0);
+
+  stop_options_.roll_warning_deg = declare_parameter("stop.roll_warning_deg", 8.0);
+  stop_options_.pitch_warning_deg = declare_parameter("stop.pitch_warning_deg", 8.0);
+  stop_options_.roll_stop_deg = declare_parameter("stop.roll_stop_deg", 15.0);
+  stop_options_.pitch_stop_deg = declare_parameter("stop.pitch_stop_deg", 15.0);
+  stop_options_.roll_latch_deg = declare_parameter("stop.roll_latch_deg", 25.0);
+  stop_options_.pitch_latch_deg = declare_parameter("stop.pitch_latch_deg", 25.0);
+  stop_options_.nominal_roll_deg = declare_parameter("stop.nominal_roll_deg", 0.0);
+  stop_options_.nominal_pitch_deg = declare_parameter("stop.nominal_pitch_deg", 5.0);
+  stop_options_.hard_decel_threshold_mps2 =
+    declare_parameter("stop.hard_decel_threshold_mps2", 4.0);
+  stop_options_.shock_threshold_mps2 = declare_parameter("stop.shock_threshold_mps2", 12.0);
+  stop_options_.min_event_duration_ms = declare_parameter("stop.min_event_duration_ms", 80);
+  stop_options_.require_manual_reset = declare_parameter("stop.require_manual_reset", true);
+
+  if (estimator_options_.filter_type != "complementary") {
+    RCLCPP_WARN(
+      get_logger(),
+      "Only complementary filter is implemented; requested filter.type='%s'",
+      estimator_options_.filter_type.c_str());
+  }
+}
+
+void AttitudeControllerNode::configureImuInputs()
+{
+  if (imu_topics_.empty()) {
+    RCLCPP_WARN(get_logger(), "imu_topics is empty; using imu/data_raw");
+    imu_topics_.push_back("imu/data_raw");
+  }
+
+  if (imu_weights_.size() != imu_topics_.size()) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_weights length (%zu) does not match imu_topics length (%zu); missing weights use 1.0",
+      imu_weights_.size(), imu_topics_.size());
+  }
+
+  imu_inputs_.clear();
+  imu_subscriptions_.clear();
+  imu_inputs_.reserve(imu_topics_.size());
+  imu_subscriptions_.reserve(imu_topics_.size());
+
+  for (std::size_t index = 0; index < imu_topics_.size(); ++index) {
+    ImuInput input;
+    input.topic = imu_topics_[index];
+    input.weight = index < imu_weights_.size() ? imu_weights_[index] : 1.0;
+    if (input.weight <= 0.0) {
+      RCLCPP_WARN(
+        get_logger(), "IMU weight for '%s' must be positive; using 1.0", input.topic.c_str());
+      input.weight = 1.0;
+    }
+    imu_inputs_.push_back(input);
+
+    imu_subscriptions_.push_back(
+      create_subscription<sensor_msgs::msg::Imu>(
+        imu_topics_[index],
+        rclcpp::SensorDataQoS(),
+        [this, index](sensor_msgs::msg::Imu::SharedPtr msg) {
+          onImuMessage(std::move(msg), index);
+        }));
+  }
+}
+
+void AttitudeControllerNode::onImuMessage(sensor_msgs::msg::Imu::SharedPtr msg, std::size_t index)
+{
+  if (index >= imu_inputs_.size()) {
+    return;
+  }
+
+  auto & input = imu_inputs_[index];
+  input.last_msg = *msg;
+  input.last_stamp = rclcpp::Time(msg->header.stamp);
+  input.last_received_time = now();
+  input.has_message = true;
+}
+
+bool AttitudeControllerNode::transformMeasurementToBaseLink(
+  const sensor_msgs::msg::Imu & msg,
+  ImuMeasurement * measurement,
+  std::string * error_message)
+{
+  measurement->linear_acceleration = msg.linear_acceleration;
+  measurement->angular_velocity = msg.angular_velocity;
+
+  if (msg.header.frame_id.empty() || msg.header.frame_id == base_link_frame_) {
+    return true;
+  }
+
+  try {
+    const auto transform = tf_buffer_.lookupTransform(
+      base_link_frame_, msg.header.frame_id, tf2::TimePointZero);
+
+    geometry_msgs::msg::Vector3Stamped accel_in;
+    accel_in.header = msg.header;
+    accel_in.vector = msg.linear_acceleration;
+    geometry_msgs::msg::Vector3Stamped accel_out;
+    tf2::doTransform(accel_in, accel_out, transform);
+    measurement->linear_acceleration = accel_out.vector;
+
+    geometry_msgs::msg::Vector3Stamped gyro_in;
+    gyro_in.header = msg.header;
+    gyro_in.vector = msg.angular_velocity;
+    geometry_msgs::msg::Vector3Stamped gyro_out;
+    tf2::doTransform(gyro_in, gyro_out, transform);
+    measurement->angular_velocity = gyro_out.vector;
+    return true;
+  } catch (const tf2::TransformException & exception) {
+    if (error_message != nullptr) {
+      *error_message = exception.what();
+    }
+    return false;
+  }
+}
+
+void AttitudeControllerNode::onTimer()
+{
+  const auto stamp = now();
+  const ImuHealthConfig health_config{imu_timeout_sec_, estimator_options_.max_accel_norm_error};
+  std::vector<ImuMeasurement> measurements;
+  std::size_t healthy_imu_count = 0;
+
+  for (auto & input : imu_inputs_) {
+    const auto health = checkImuHealth(input, stamp, health_config);
+    input.healthy = health.healthy;
+    input.health_reason = health.reason;
+
+    if (!input.healthy) {
+      continue;
+    }
+
+    ImuMeasurement measurement;
+    measurement.weight = input.weight;
+    std::string transform_error;
+    if (!transformMeasurementToBaseLink(input.last_msg, &measurement, &transform_error)) {
+      input.healthy = false;
+      input.health_reason = "TF transform failed: " + transform_error;
+      continue;
+    }
+
+    measurements.push_back(measurement);
+    ++healthy_imu_count;
+  }
+
+  if (attitude_estimation_enabled_) {
+    last_estimate_ = estimator_.update(measurements, stamp);
+    publishAttitude(stamp, last_estimate_);
+    publishAttitudeDiagnostics(stamp, last_estimate_, healthy_imu_count);
+
+    if (publish_base_link_tf_ && last_estimate_.healthy) {
+      publishBaseLinkTf(stamp, last_estimate_);
+    }
+
+    if (publish_tool_link_tf_ && !tool_link_warning_logged_) {
+      RCLCPP_WARN(
+        get_logger(),
+        "publish_tool_link_tf is configured, but tool_link roll TF is reserved for a future version");
+      tool_link_warning_logged_ = true;
+    }
+  } else {
+    AttitudeEstimate disabled_estimate;
+    disabled_estimate.healthy = false;
+    publishAttitudeDiagnostics(stamp, disabled_estimate, healthy_imu_count);
+  }
+
+  StopSupervisorState safety_state;
+  if (safety_stop_enabled_ && last_estimate_.healthy) {
+    safety_state = stop_supervisor_.update(
+      last_estimate_, last_estimate_.fused_linear_acceleration, stamp);
+  } else {
+    safety_state.reason = safety_stop_enabled_ ? "waiting for healthy attitude" : "disabled";
+  }
+
+  publishSafety(stamp, safety_state);
+  publishSafetyDiagnostics(stamp, safety_state);
+}
+
+void AttitudeControllerNode::publishAttitude(
+  const rclcpp::Time & stamp,
+  const AttitudeEstimate & estimate)
+{
+  if (!estimate.healthy) {
+    return;
+  }
+
+  geometry_msgs::msg::Vector3Stamped msg;
+  msg.header.stamp = stamp;
+  msg.header.frame_id = base_link_frame_;
+  msg.vector.x = estimate.roll_rad;
+  msg.vector.y = estimate.pitch_rad;
+  msg.vector.z = 0.0;
+  attitude_publisher_->publish(msg);
+}
+
+void AttitudeControllerNode::publishAttitudeDiagnostics(
+  const rclcpp::Time & stamp,
+  const AttitudeEstimate & estimate,
+  std::size_t healthy_imu_count)
+{
+  diagnostic_msgs::msg::DiagnosticArray array;
+  array.header.stamp = stamp;
+
+  const auto level = attitude_estimation_enabled_ && estimate.healthy ?
+    diagnostic_msgs::msg::DiagnosticStatus::OK :
+    diagnostic_msgs::msg::DiagnosticStatus::WARN;
+  auto estimator_status = makeStatus(
+    "attitude_estimator",
+    level,
+    attitude_estimation_enabled_ ? (estimate.healthy ? "ok" : "no healthy estimate") : "disabled");
+  estimator_status.values.push_back(
+    keyValue(
+      "enabled",
+      attitude_estimation_enabled_ ? "true" : "false"));
+  estimator_status.values.push_back(
+    keyValue(
+      "healthy_imu_count",
+      static_cast<double>(healthy_imu_count)));
+  estimator_status.values.push_back(keyValue("roll_rad", estimate.roll_rad));
+  estimator_status.values.push_back(keyValue("pitch_rad", estimate.pitch_rad));
+  estimator_status.values.push_back(keyValue("roll_deg", radiansToDegrees(estimate.roll_rad)));
+  estimator_status.values.push_back(keyValue("pitch_deg", radiansToDegrees(estimate.pitch_rad)));
+  array.status.push_back(estimator_status);
+
+  for (const auto & input : imu_inputs_) {
+    auto imu_status = makeStatus(
+      "imu_input: " + input.topic,
+      input.healthy ? diagnostic_msgs::msg::DiagnosticStatus::OK :
+      diagnostic_msgs::msg::DiagnosticStatus::WARN,
+      input.health_reason);
+    imu_status.values.push_back(keyValue("weight", input.weight));
+    imu_status.values.push_back(keyValue("topic", input.topic));
+    array.status.push_back(imu_status);
+  }
+
+  attitude_diagnostics_publisher_->publish(array);
+}
+
+void AttitudeControllerNode::publishBaseLinkTf(
+  const rclcpp::Time & stamp,
+  const AttitudeEstimate & estimate)
+{
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.stamp = stamp;
+  transform.header.frame_id = base_footprint_frame_;
+  transform.child_frame_id = base_link_frame_;
+  transform.transform.translation.x = 0.0;
+  transform.transform.translation.y = 0.0;
+  transform.transform.translation.z = 0.0;
+
+  tf2::Quaternion rotation;
+  rotation.setRPY(estimate.roll_rad, estimate.pitch_rad, 0.0);
+  transform.transform.rotation = tf2::toMsg(rotation);
+  tf_broadcaster_->sendTransform(transform);
+}
+
+void AttitudeControllerNode::publishSafety(
+  const rclcpp::Time &,
+  const StopSupervisorState & state)
+{
+  std_msgs::msg::Bool msg;
+  msg.data = safety_stop_enabled_ && state.stopped;
+  safety_stop_publisher_->publish(msg);
+}
+
+void AttitudeControllerNode::publishSafetyDiagnostics(
+  const rclcpp::Time & stamp,
+  const StopSupervisorState & state)
+{
+  diagnostic_msgs::msg::DiagnosticArray array;
+  array.header.stamp = stamp;
+
+  unsigned char level = diagnostic_msgs::msg::DiagnosticStatus::OK;
+  if (!safety_stop_enabled_) {
+    level = diagnostic_msgs::msg::DiagnosticStatus::OK;
+  } else if (state.stopped) {
+    level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+  } else if (state.warning) {
+    level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+  }
+
+  auto status = makeStatus(
+    "safety_stop_supervisor",
+    level,
+    safety_stop_enabled_ ? state.reason : "disabled");
+  status.values.push_back(keyValue("enabled", safety_stop_enabled_ ? "true" : "false"));
+  status.values.push_back(keyValue("stopped", state.stopped ? "true" : "false"));
+  status.values.push_back(keyValue("latched", state.latched ? "true" : "false"));
+  status.values.push_back(keyValue("roll_warning", state.roll_warning ? "true" : "false"));
+  status.values.push_back(keyValue("pitch_warning", state.pitch_warning ? "true" : "false"));
+  status.values.push_back(keyValue("roll_stop", state.roll_stop ? "true" : "false"));
+  status.values.push_back(keyValue("pitch_stop", state.pitch_stop ? "true" : "false"));
+  status.values.push_back(keyValue("shock", state.shock ? "true" : "false"));
+  status.values.push_back(keyValue("hard_decel", state.hard_decel ? "true" : "false"));
+  status.values.push_back(keyValue("nominal_roll_deg", stop_options_.nominal_roll_deg));
+  status.values.push_back(keyValue("nominal_pitch_deg", stop_options_.nominal_pitch_deg));
+  array.status.push_back(status);
+
+  safety_diagnostics_publisher_->publish(array);
+}
+
+void AttitudeControllerNode::resetFaultService(
+  const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
+  std::shared_ptr<std_srvs::srv::Trigger::Response> response)
+{
+  (void)request;
+  response->success = stop_supervisor_.resetFault();
+  response->message = response->success ? "fault reset" : "fault reset failed";
+}
+
+void AttitudeControllerNode::enableAttitudeEstimationService(
+  const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+  std::shared_ptr<std_srvs::srv::SetBool::Response> response)
+{
+  attitude_estimation_enabled_ = request->data;
+  if (!attitude_estimation_enabled_) {
+    estimator_.reset();
+    last_estimate_ = AttitudeEstimate();
+  }
+
+  response->success = true;
+  response->message = attitude_estimation_enabled_ ?
+    "attitude estimation enabled" : "attitude estimation disabled";
+}
+
+void AttitudeControllerNode::enableSafetyStopService(
+  const std::shared_ptr<std_srvs::srv::SetBool::Request> request,
+  std::shared_ptr<std_srvs::srv::SetBool::Response> response)
+{
+  safety_stop_enabled_ = request->data;
+  if (!safety_stop_enabled_) {
+    stop_supervisor_.resetFault();
+  }
+
+  response->success = true;
+  response->message = safety_stop_enabled_ ? "safety stop enabled" : "safety stop disabled";
+}
+
+}  // namespace amr_sweeper_attitude_controller
+
+int main(int argc, char ** argv)
+{
+  rclcpp::init(argc, argv);
+  rclcpp::spin(std::make_shared<amr_sweeper_attitude_controller::AttitudeControllerNode>());
+  rclcpp::shutdown();
+  return 0;
+}

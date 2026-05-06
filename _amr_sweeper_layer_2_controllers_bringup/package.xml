@@ -16,6 +16,7 @@
   <exec_depend>amr_sweeper_twist_mux</exec_depend>
   <exec_depend>amr_sweeper_wheel_controller</exec_depend>
   <exec_depend>amr_sweeper_tool_controller</exec_depend>
+  <exec_depend>amr_sweeper_attitude_controller</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>
