@@ -7,17 +7,16 @@
 
 #include "attitude_estimator.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
-#include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/vector3_stamped.hpp"
 #include "imu_input.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/imu.hpp"
+#include "sensor_msgs/msg/joint_state.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "std_srvs/srv/set_bool.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "stop_supervisor.hpp"
 #include "tf2_ros/buffer.h"
-#include "tf2_ros/transform_broadcaster.h"
 #include "tf2_ros/transform_listener.h"
 
 namespace amr_sweeper_attitude_controller
@@ -44,7 +43,7 @@ private:
     const rclcpp::Time & stamp,
     const AttitudeEstimate & estimate,
     std::size_t healthy_imu_count);
-  void publishBaseLinkTf(const rclcpp::Time & stamp, const AttitudeEstimate & estimate);
+  void publishBaseLinkJointStates(const rclcpp::Time & stamp, const AttitudeEstimate & estimate);
   void publishSafety(const rclcpp::Time & stamp, const StopSupervisorState & state);
   void publishSafetyDiagnostics(const rclcpp::Time & stamp, const StopSupervisorState & state);
 
@@ -60,13 +59,15 @@ private:
 
   bool attitude_estimation_enabled_{true};
   bool safety_stop_enabled_{false};
-  bool publish_base_link_tf_{true};
+  bool publish_base_link_joint_states_{true};
   bool publish_tool_link_tf_{false};
   bool tool_link_warning_logged_{false};
 
   std::string base_footprint_frame_{"base_footprint"};
   std::string base_link_frame_{"base_link"};
   std::string tool_link_frame_{"tool_link"};
+  std::string base_roll_joint_name_{"base_roll_joint"};
+  std::string base_pitch_joint_name_{"base_pitch_joint"};
 
   double imu_timeout_sec_{0.25};
   double publish_rate_hz_{50.0};
@@ -85,6 +86,7 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr attitude_publisher_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr
     attitude_diagnostics_publisher_;
+  rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr base_joint_state_publisher_;
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr safety_stop_publisher_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr safety_diagnostics_publisher_;
 
@@ -95,7 +97,6 @@ private:
   rclcpp::TimerBase::SharedPtr timer_;
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
-  std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 };
 
 }  // namespace amr_sweeper_attitude_controller

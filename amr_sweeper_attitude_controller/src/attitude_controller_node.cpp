@@ -10,7 +10,6 @@
 
 #include "diagnostic_msgs/msg/diagnostic_status.hpp"
 #include "diagnostic_msgs/msg/key_value.hpp"
-#include "tf2/LinearMath/Quaternion.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 namespace amr_sweeper_attitude_controller
@@ -64,12 +63,12 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
     "attitude/roll_pitch", rclcpp::SystemDefaultsQoS());
   attitude_diagnostics_publisher_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
     "attitude/status", rclcpp::SystemDefaultsQoS());
+  base_joint_state_publisher_ = create_publisher<sensor_msgs::msg::JointState>(
+    "joint_states", rclcpp::SystemDefaultsQoS());
   safety_stop_publisher_ = create_publisher<std_msgs::msg::Bool>(
     "safety_stop", rclcpp::SystemDefaultsQoS());
   safety_diagnostics_publisher_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
     "safety/status", rclcpp::SystemDefaultsQoS());
-
-  tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
   reset_fault_service_ = create_service<std_srvs::srv::Trigger>(
     "amr_sweeper_attitude_controller/reset_fault",
@@ -103,8 +102,10 @@ void AttitudeControllerNode::loadParameters()
   base_footprint_frame_ = declare_parameter("base_footprint_frame", "base_footprint");
   base_link_frame_ = declare_parameter("base_link_frame", "base_link");
   tool_link_frame_ = declare_parameter("tool_link_frame", "tool_link");
+  base_roll_joint_name_ = declare_parameter("base_roll_joint_name", "base_roll_joint");
+  base_pitch_joint_name_ = declare_parameter("base_pitch_joint_name", "base_pitch_joint");
 
-  publish_base_link_tf_ = declare_parameter("publish_base_link_tf", true);
+  publish_base_link_joint_states_ = declare_parameter("publish_base_link_joint_states", true);
   publish_tool_link_tf_ = declare_parameter("publish_tool_link_tf", false);
 
   imu_topics_ = declare_parameter<std::vector<std::string>>(
@@ -272,8 +273,8 @@ void AttitudeControllerNode::onTimer()
     publishAttitude(stamp, last_estimate_);
     publishAttitudeDiagnostics(stamp, last_estimate_, healthy_imu_count);
 
-    if (publish_base_link_tf_ && last_estimate_.healthy) {
-      publishBaseLinkTf(stamp, last_estimate_);
+    if (publish_base_link_joint_states_) {
+      publishBaseLinkJointStates(stamp, last_estimate_);
     }
 
     if (publish_tool_link_tf_ && !tool_link_warning_logged_) {
@@ -360,22 +361,15 @@ void AttitudeControllerNode::publishAttitudeDiagnostics(
   attitude_diagnostics_publisher_->publish(array);
 }
 
-void AttitudeControllerNode::publishBaseLinkTf(
+void AttitudeControllerNode::publishBaseLinkJointStates(
   const rclcpp::Time & stamp,
   const AttitudeEstimate & estimate)
 {
-  geometry_msgs::msg::TransformStamped transform;
-  transform.header.stamp = stamp;
-  transform.header.frame_id = base_footprint_frame_;
-  transform.child_frame_id = base_link_frame_;
-  transform.transform.translation.x = 0.0;
-  transform.transform.translation.y = 0.0;
-  transform.transform.translation.z = 0.0;
-
-  tf2::Quaternion rotation;
-  rotation.setRPY(estimate.roll_rad, estimate.pitch_rad, 0.0);
-  transform.transform.rotation = tf2::toMsg(rotation);
-  tf_broadcaster_->sendTransform(transform);
+  sensor_msgs::msg::JointState msg;
+  msg.header.stamp = stamp;
+  msg.name = {base_roll_joint_name_, base_pitch_joint_name_};
+  msg.position = {estimate.roll_rad, estimate.pitch_rad};
+  base_joint_state_publisher_->publish(msg);
 }
 
 void AttitudeControllerNode::publishSafety(
