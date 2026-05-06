@@ -18,7 +18,7 @@ amr_sweeper_attitude_controller_node:
       - 1.0
 
     imu_timeout_sec: 0.25
-    publish_rate_hz: 50.0
+    publish_rate_hz: 10.0
 
     filter:
       type: complementary
