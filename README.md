@@ -10,6 +10,7 @@ Dependencies to other AMR Sweeper packages:
 - `amr_sweeper_twist_mux`
 - `amr_sweeper_wheel_controller`
 - `amr_sweeper_tool_controller`
+- `amr_sweeper_attitude_controller`
 - `amr_sweeper_layer_1_hardware_bringup`
 
 ## Purpose
@@ -21,12 +22,14 @@ This repository is the controller layer for the AMR Sweeper. It turns human or a
 - `use_twist_mux`: default `true`
 - `use_wheel_controller`: default `true`
 - `use_tool_controller`: default `true`
+- `use_attitude_controller`: default `true`
 - `joy_dev`: default `/dev/input/js0`
 
 ## Overview
-Layer 2 sits between the hardware interfaces in layer 1 and the higher-level decision-making in layer 3. It contains the joystick input path, the command arbitration path for wheel motion, the relay into the wheel ODrive controller, and the brush/tool command mapper for the SteadyDrive tool motors.
+Layer 2 sits between the hardware interfaces in layer 1 and the higher-level decision-making in layer 3. It contains the joystick input path, the command arbitration path for wheel motion, the relay into the wheel ODrive controller, the brush/tool command mapper for the SteadyDrive tool motors, and the attitude supervision path driven by the robot IMU.
 
 ## Notes
 - The default command launches the full layer 2 controller bringup package.
 - Layer 2 assumes the relevant layer 1 interfaces are already running.
 - The wheel and tool controller packages forward commands into layer 1 interfaces rather than talking to hardware directly.
+- The attitude controller consumes `imu/data_raw` and publishes namespaced attitude and safety topics by default.
