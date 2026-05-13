@@ -29,16 +29,16 @@
     axis_linear:  # right thumb stick vertical
       x: 3
     scale_linear:
-      x: 1.0
+      x: 0.10
     scale_linear_turbo:
-      x: 2.0
+      x: 0.20
 
     axis_angular:  # right thumb stick horizontal
       yaw: 2
     scale_angular:
-      yaw: 1.0
+      yaw: 0.10
     scale_angular_turbo:
-      yaw: 2.0
+      yaw: 0.20
 
     require_enable_button: true
     enable_button: 4  # Left shoulder button
