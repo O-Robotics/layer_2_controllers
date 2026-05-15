@@ -23,7 +23,7 @@
     enable_button: 4  # Left shoulder button
     enable_turbo_button: 5  # Right shoulder button
 
-/**/teleop_twist_joy_brushes:
+/**/teleop_twist_joy_tools:
   ros__parameters:
     
     axis_linear:  # right thumb stick vertical

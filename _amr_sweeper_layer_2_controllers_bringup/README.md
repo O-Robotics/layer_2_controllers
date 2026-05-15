@@ -36,4 +36,4 @@ This package is the main entrypoint for the AMR Sweeper controller layer.
 ## Notes
 - Use this package when you want the whole controller layer running together.
 - Layer 1 must already expose the wheel and tool controller interfaces needed by the layer 2 packages.
-- The attitude controller expects the robot IMU on `imu/data_raw` inside the selected robot namespace by default.
+- The attitude controller expects the IMU topic at `/amr_sweeper/imu/data_raw` when using the default namespace.

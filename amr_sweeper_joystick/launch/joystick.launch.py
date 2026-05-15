@@ -39,10 +39,10 @@ def generate_launch_description():
         Node(
             package='teleop_twist_joy',
             executable='teleop_node',
-            name='teleop_twist_joy_brushes',
+            name='teleop_twist_joy_tools',
             namespace=namespace,
             output='screen',
             parameters=[joy_params],
-            remappings=[('cmd_vel', 'cmd_vel_joy_brushes')],
+            remappings=[('cmd_vel', 'cmd_vel_joy_tools')],
         ),
     ])

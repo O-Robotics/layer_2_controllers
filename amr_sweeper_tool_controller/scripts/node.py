@@ -11,10 +11,10 @@ from std_msgs.msg import Float64MultiArray
 class ToolVelocityMapperNode(Node):
     def __init__(self):
         super().__init__('tool_velocity_mapper')
-        self.max_brush_speed_rad_s = math.radians(2000.0)
+        self.max_tool_speed_rad_s = math.radians(2000.0)
         self.subscription = self.create_subscription(
             Twist,
-            'cmd_vel_joy_brushes',
+            'cmd_vel_joy_tools',
             self.cmd_vel_callback,
             10,
         )
@@ -26,8 +26,8 @@ class ToolVelocityMapperNode(Node):
         self.get_logger().info('ToolVelocityMapperNode started.')
 
     def cmd_vel_callback(self, msg: Twist):
-        left_motor = (msg.linear.x - msg.angular.z) * self.max_brush_speed_rad_s
-        right_motor = (msg.linear.x + msg.angular.z) * self.max_brush_speed_rad_s
+        left_motor = (msg.linear.x - msg.angular.z) * self.max_tool_speed_rad_s
+        right_motor = (msg.linear.x + msg.angular.z) * self.max_tool_speed_rad_s
 
         motor_msg = Float64MultiArray()
         motor_msg.data = [left_motor, right_motor]

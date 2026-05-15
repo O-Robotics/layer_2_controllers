@@ -23,6 +23,6 @@ This package converts tool-side joystick commands into the SteadyDrive controlle
 `amr_sweeper_tool_controller` is the layer 2 adapter between operator tool commands and the layer 1 SteadyDrive controller interface. It subscribes to the tool joystick command topic and publishes motor-command values that the SteadyDrive side can consume.
 
 ## Notes
-- Consumes `cmd_vel_joy_brushes`.
+- Consumes `cmd_vel_joy_tools`.
 - Publishes `controller_steadydrive/commands`.
 - Requires the layer 1 SteadyDrive control path to be available.
