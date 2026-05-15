@@ -12,6 +12,12 @@ install(
   DESTINATION share/${PROJECT_NAME}
 )
 
+install(
+  PROGRAMS scripts/twist_stamper_node.py
+  DESTINATION lib/${PROJECT_NAME}
+  RENAME twist_stamper_node
+)
+
 if(BUILD_TESTING)
   find_package(ament_lint_auto REQUIRED)
   ament_lint_auto_find_test_dependencies()
