@@ -23,11 +23,11 @@ This package is the main entrypoint for the AMR Sweeper controller layer.
 
 ## Launch Arguments
 - `namespace`: default `amr_sweeper`
-- `use_joystick`: default `true`
-- `use_twist_mux`: default `true`
-- `use_wheel_controller`: default `true`
-- `use_tool_controller`: default `true`
-- `use_attitude_controller`: default `true`
+- `use_amr_sweeper_joystick`: default `true`
+- `use_amr_sweeper_twist_mux`: default `true`
+- `use_amr_sweeper_wheel_controller`: default `true`
+- `use_amr_sweeper_tool_controller`: default `true`
+- `use_amr_sweeper_attitude_controller`: default `true`
 - `joy_dev`: default `/dev/input/js0`
 
 ## Overview
