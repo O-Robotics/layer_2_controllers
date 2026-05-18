@@ -11,7 +11,7 @@ from std_msgs.msg import Float64MultiArray
 class ToolVelocityMapperNode(Node):
     def __init__(self):
         super().__init__('tool_velocity_mapper')
-        self.max_tool_speed_rad_s = math.radians(2000.0)
+        self.max_tool_speed_rad_s = 35.0
         self.subscription = self.create_subscription(
             Twist,
             'cmd_vel_joy_tools',
