@@ -1,23 +1,23 @@
 <?xml version="1.0"?>
 <?xml-model href="http://download.ros.org/schema/package_format3.xsd" schematypens="http://www.w3.org/2001/XMLSchema"?>
 <package format="3">
-  <name>amr_sweeper_layer_2_controllers_bringup</name>
+  <name>amr_sweeper_safety_controller</name>
   <version>0.0.0</version>
-  <description>Bringup entrypoint for the AMR Sweeper layer 2 controller stack.</description>
+  <description>Latched safety-stop controller for the AMR Sweeper controller layer.</description>
   <maintainer email="info@O-Robotics.com">O-Robotics</maintainer>
   <license>Apache-2.0</license>
 
   <buildtool_depend>ament_cmake</buildtool_depend>
 
+  <depend>amr_sweeper_safety_msgs</depend>
+  <depend>diagnostic_msgs</depend>
+  <depend>geometry_msgs</depend>
+  <depend>rclcpp</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
+
   <exec_depend>launch</exec_depend>
   <exec_depend>launch_ros</exec_depend>
-  <exec_depend>ament_index_python</exec_depend>
-  <exec_depend>amr_sweeper_joystick</exec_depend>
-  <exec_depend>amr_sweeper_twist_mux</exec_depend>
-  <exec_depend>amr_sweeper_wheel_controller</exec_depend>
-  <exec_depend>amr_sweeper_tool_controller</exec_depend>
-  <exec_depend>amr_sweeper_attitude_controller</exec_depend>
-  <exec_depend>amr_sweeper_safety_controller</exec_depend>
 
   <test_depend>ament_lint_auto</test_depend>
   <test_depend>ament_lint_common</test_depend>

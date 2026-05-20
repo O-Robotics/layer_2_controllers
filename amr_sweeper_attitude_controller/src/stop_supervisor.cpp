@@ -103,12 +103,29 @@ StopSupervisorState StopSupervisor::update(
   }
 
   std::vector<std::string> reasons;
-  appendReason(&reasons, next.roll_warning, "roll warning");
-  appendReason(&reasons, next.pitch_warning, "pitch warning");
-  appendReason(&reasons, next.roll_stop, "roll stop");
-  appendReason(&reasons, next.pitch_stop, "pitch stop");
-  appendReason(&reasons, next.roll_latch, "roll latch");
-  appendReason(&reasons, next.pitch_latch, "pitch latch");
+  if (!next.roll_stop && !next.pitch_stop && !next.roll_latch && !next.pitch_latch) {
+    if (next.roll_warning && next.pitch_warning) {
+      reasons.push_back("roll and pitch warning");
+    } else {
+      appendReason(&reasons, next.roll_warning, "roll warning");
+      appendReason(&reasons, next.pitch_warning, "pitch warning");
+    }
+  }
+
+  if (next.roll_stop && next.pitch_stop) {
+    reasons.push_back("roll and pitch stop");
+  } else {
+    appendReason(&reasons, next.roll_stop, "roll stop");
+    appendReason(&reasons, next.pitch_stop, "pitch stop");
+  }
+
+  if (next.roll_latch && next.pitch_latch) {
+    reasons.push_back("roll and pitch latch");
+  } else {
+    appendReason(&reasons, next.roll_latch, "roll latch");
+    appendReason(&reasons, next.pitch_latch, "pitch latch");
+  }
+
   appendReason(&reasons, next.shock, "shock acceleration");
   appendReason(&reasons, next.hard_decel, "hard deceleration");
   appendReason(&reasons, next.latched && !stop_now && !latch_now, "manual reset required");

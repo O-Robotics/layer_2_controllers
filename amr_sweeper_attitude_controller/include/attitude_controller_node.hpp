@@ -5,6 +5,7 @@
 #include <string>
 #include <vector>
 
+#include "amr_sweeper_safety_msgs/msg/safety_stop.hpp"
 #include "attitude_estimator.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
 #include "geometry_msgs/msg/vector3_stamped.hpp"
@@ -45,7 +46,6 @@ private:
     std::size_t healthy_imu_count);
   void publishBaseLinkJointStates(const rclcpp::Time & stamp, const AttitudeEstimate & estimate);
   void publishSafety(const rclcpp::Time & stamp, const StopSupervisorState & state);
-  void publishSafetyDiagnostics(const rclcpp::Time & stamp, const StopSupervisorState & state);
 
   void resetFaultService(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
@@ -68,6 +68,7 @@ private:
   std::string tool_link_frame_{"tool_link"};
   std::string base_roll_joint_name_{"base_roll_joint"};
   std::string base_pitch_joint_name_{"base_pitch_joint"};
+  std::string stop_topic_name_{"safety_msgs/stop"};
 
   double imu_timeout_sec_{0.25};
   double publish_rate_hz_{50.0};
@@ -82,13 +83,14 @@ private:
   AttitudeEstimator estimator_;
   StopSupervisor stop_supervisor_;
   AttitudeEstimate last_estimate_;
+  bool last_stop_request_active_{false};
+  std::string last_stop_reason_;
 
   rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr attitude_publisher_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr
     attitude_diagnostics_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr base_joint_state_publisher_;
-  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr safety_stop_publisher_;
-  rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr safety_diagnostics_publisher_;
+  rclcpp::Publisher<amr_sweeper_safety_msgs::msg::SafetyStop>::SharedPtr stop_request_publisher_;
 
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reset_fault_service_;
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr enable_attitude_service_;

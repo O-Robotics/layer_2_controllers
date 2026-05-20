@@ -2,6 +2,10 @@
   ros__parameters:
     use_stamped: false
     topics:
+      safety_stop:
+        topic: cmd_vel_safety_stop
+        timeout: 0.5
+        priority: 255
       navigation:
         topic: cmd_vel_navigation_input_wheels
         timeout: 0.5
