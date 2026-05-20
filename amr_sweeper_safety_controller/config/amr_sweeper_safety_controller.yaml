@@ -4,7 +4,7 @@ safety_controller:
     publish_rate_hz: 20.0            # While latched, zero wheel and tool commands are republished at this rate.
 
     # ── Common stop input ─────────────────────────────────────────────────────
-    stop_topic_name: safety_stop     # Shared amr_sweeper_safety_msgs/SafetyStop topic any package can publish to.
+    stop_topic_name: safety_msgs/stop  # Shared amr_sweeper_safety_msgs/SafetyStop topic any package can publish to.
 
     # ── Stop-command outputs ──────────────────────────────────────────────────
     wheel_stop_topic: cmd_vel_safety_stop  # Highest-priority wheel stop command consumed by twist_mux.

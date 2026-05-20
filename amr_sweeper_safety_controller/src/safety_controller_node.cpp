@@ -59,12 +59,8 @@ SafetyControllerNode::SafetyControllerNode(const rclcpp::NodeOptions & options)
     wheel_stop_topic_, rclcpp::SystemDefaultsQoS());
   tool_stop_publisher_ = create_publisher<geometry_msgs::msg::Twist>(
     tool_stop_topic_, rclcpp::SystemDefaultsQoS());
-  latched_stop_publisher_ = create_publisher<std_msgs::msg::Bool>(
-    "safety/latched_stop", rclcpp::SystemDefaultsQoS());
-  active_stop_publisher_ = create_publisher<amr_sweeper_safety_msgs::msg::SafetyStop>(
-    "safety/active_stop", rclcpp::SystemDefaultsQoS());
   diagnostics_publisher_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
-    "safety/status", rclcpp::SystemDefaultsQoS());
+    "safety_controller/status", rclcpp::SystemDefaultsQoS());
 
   reset_latched_stop_service_ = create_service<std_srvs::srv::Trigger>(
     "amr_sweeper_safety_controller/reset_latched_stop",
@@ -94,7 +90,7 @@ void SafetyControllerNode::loadParameters()
     publish_rate_hz_ = 20.0;
   }
 
-  stop_topic_name_ = declare_parameter("stop_topic_name", "safety_stop");
+  stop_topic_name_ = declare_parameter("stop_topic_name", "safety_msgs/stop");
   wheel_stop_topic_ = declare_parameter("wheel_stop_topic", "cmd_vel_safety_stop");
   tool_stop_topic_ = declare_parameter("tool_stop_topic", "cmd_vel_joy_tools");
   publish_zero_tool_command_ = declare_parameter("publish_zero_tool_command", true);
@@ -193,12 +189,6 @@ void SafetyControllerNode::publishZeroCommands()
 
 void SafetyControllerNode::publishStatus()
 {
-  std_msgs::msg::Bool latched_stop_msg;
-  latched_stop_msg.data = enabled_ && latched_stop_active_;
-  latched_stop_publisher_->publish(latched_stop_msg);
-
-  active_stop_publisher_->publish(active_stop_event_);
-
   diagnostic_msgs::msg::DiagnosticArray array;
   array.header.stamp = now();
 

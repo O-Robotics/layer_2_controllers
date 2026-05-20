@@ -30,16 +30,15 @@ This package latches shared stop requests and forces the AMR Sweeper to a stop f
 - Fields: `stamp`, `sender`, `reason`, `status`, `value`
 
 ## Interfaces
-- Subscribes to `safety_stop` as `amr_sweeper_safety_msgs/msg/SafetyStop`.
+- Subscribes to `safety_msgs/stop` as `amr_sweeper_safety_msgs/msg/SafetyStop`.
 - Publishes `cmd_vel_safety_stop` as `geometry_msgs/msg/Twist`.
 - Publishes `cmd_vel_joy_tools` as a zero `geometry_msgs/msg/Twist` while the stop is latched.
-- Publishes `safety/latched_stop` as `std_msgs/msg/Bool`.
-- Publishes `safety/active_stop` as `amr_sweeper_safety_msgs/msg/SafetyStop`.
-- Publishes `safety/status` as `diagnostic_msgs/msg/DiagnosticArray`.
+- Publishes `safety_controller/status` as `diagnostic_msgs/msg/DiagnosticArray`.
 - Provides `amr_sweeper_safety_controller/reset_latched_stop` as `std_srvs/srv/Trigger`.
 - Provides `amr_sweeper_safety_controller/enable_controller` as `std_srvs/srv/SetBool`.
 
 ## Notes
 - The default node name is `safety_controller`, so under the default namespace it runs as `/amr_sweeper/safety_controller`.
+- The public safety topics are kept intentionally small: `safety_msgs/stop` for stop events and `safety_controller/status` for diagnostics.
 - `twist_mux` should assign the `cmd_vel_safety_stop` input the highest priority in layer 2.
 - Navigation cancellation and direct hardware-stop hooks are left as explicit placeholders for the next integration step.

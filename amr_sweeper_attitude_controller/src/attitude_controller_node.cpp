@@ -74,8 +74,6 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
     "attitude/status", rclcpp::SystemDefaultsQoS());
   base_joint_state_publisher_ = create_publisher<sensor_msgs::msg::JointState>(
     "joint_states", rclcpp::SystemDefaultsQoS());
-  safety_stop_publisher_ = create_publisher<std_msgs::msg::Bool>(
-    safety_state_topic_, rclcpp::SystemDefaultsQoS());
   stop_request_publisher_ = create_publisher<amr_sweeper_safety_msgs::msg::SafetyStop>(
     stop_topic_name_, rclcpp::SystemDefaultsQoS());
 
@@ -113,8 +111,7 @@ void AttitudeControllerNode::loadParameters()
   tool_link_frame_ = declare_parameter("tool_link_frame", "tool_link");
   base_roll_joint_name_ = declare_parameter("base_roll_joint_name", "base_roll_joint");
   base_pitch_joint_name_ = declare_parameter("base_pitch_joint_name", "base_pitch_joint");
-  safety_state_topic_ = declare_parameter("safety_state_topic", "safety/stop_active");
-  stop_topic_name_ = declare_parameter("stop_topic_name", "safety_stop");
+  stop_topic_name_ = declare_parameter("stop_topic_name", "safety_msgs/stop");
 
   publish_base_link_joint_states_ = declare_parameter("publish_base_link_joint_states", true);
   publish_tool_link_tf_ = declare_parameter("publish_tool_link_tf", false);
@@ -386,12 +383,10 @@ void AttitudeControllerNode::publishSafety(
   const rclcpp::Time & stamp,
   const StopSupervisorState & state)
 {
-  std_msgs::msg::Bool msg;
-  msg.data = safety_stop_enabled_ && state.stopped;
-  safety_stop_publisher_->publish(msg);
+  const bool stop_active = safety_stop_enabled_ && state.stopped;
 
   const bool should_publish_stop_request =
-    msg.data && (!last_stop_request_active_ || last_stop_reason_ != state.reason);
+    stop_active && (!last_stop_request_active_ || last_stop_reason_ != state.reason);
 
   if (should_publish_stop_request) {
     amr_sweeper_safety_msgs::msg::SafetyStop stop_request_msg;
@@ -405,8 +400,8 @@ void AttitudeControllerNode::publishSafety(
     stop_request_publisher_->publish(stop_request_msg);
   }
 
-  last_stop_request_active_ = msg.data;
-  last_stop_reason_ = msg.data ? state.reason : "";
+  last_stop_request_active_ = stop_active;
+  last_stop_reason_ = stop_active ? state.reason : "";
 }
 
 void AttitudeControllerNode::resetFaultService(

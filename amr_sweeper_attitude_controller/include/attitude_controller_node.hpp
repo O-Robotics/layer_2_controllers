@@ -68,8 +68,7 @@ private:
   std::string tool_link_frame_{"tool_link"};
   std::string base_roll_joint_name_{"base_roll_joint"};
   std::string base_pitch_joint_name_{"base_pitch_joint"};
-  std::string safety_state_topic_{"safety/stop_active"};
-  std::string stop_topic_name_{"safety_stop"};
+  std::string stop_topic_name_{"safety_msgs/stop"};
 
   double imu_timeout_sec_{0.25};
   double publish_rate_hz_{50.0};
@@ -91,7 +90,6 @@ private:
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr
     attitude_diagnostics_publisher_;
   rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr base_joint_state_publisher_;
-  rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr safety_stop_publisher_;
   rclcpp::Publisher<amr_sweeper_safety_msgs::msg::SafetyStop>::SharedPtr stop_request_publisher_;
 
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reset_fault_service_;
