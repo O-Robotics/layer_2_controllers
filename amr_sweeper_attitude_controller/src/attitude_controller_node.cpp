@@ -3,6 +3,7 @@
 #include <algorithm>
 #include <chrono>
 #include <cmath>
+#include <iomanip>
 #include <memory>
 #include <sstream>
 #include <string>
@@ -390,13 +391,14 @@ void AttitudeControllerNode::publishSafety(
 
   if (should_publish_stop_request) {
     amr_sweeper_safety_msgs::msg::SafetyStop stop_request_msg;
+    std::ostringstream reason_stream;
+    reason_stream << std::fixed << std::setprecision(1)
+                  << state.reason
+                  << ", roll=" << radiansToDegrees(last_estimate_.roll_rad) << " deg"
+                  << ", pitch=" << radiansToDegrees(last_estimate_.pitch_rad) << " deg";
     stop_request_msg.stamp = toBuiltinTime(stamp);
     stop_request_msg.sender = "amr_sweeper_attitude_controller";
-    stop_request_msg.reason = state.reason;
-    stop_request_msg.status = "ERROR";
-    stop_request_msg.value = std::max(
-      std::abs(radiansToDegrees(last_estimate_.roll_rad)),
-      std::abs(radiansToDegrees(last_estimate_.pitch_rad)));
+    stop_request_msg.reason = reason_stream.str();
     stop_request_publisher_->publish(stop_request_msg);
   }
 

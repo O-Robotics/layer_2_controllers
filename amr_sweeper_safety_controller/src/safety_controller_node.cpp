@@ -122,9 +122,6 @@ void SafetyControllerNode::latchStop(
   if (normalized_event.reason.empty()) {
     normalized_event.reason = "stop requested";
   }
-  if (normalized_event.status.empty()) {
-    normalized_event.status = "STOP";
-  }
   if (normalized_event.stamp.sec == 0 && normalized_event.stamp.nanosec == 0) {
     normalized_event.stamp = toBuiltinTime(now());
   }
@@ -132,9 +129,7 @@ void SafetyControllerNode::latchStop(
   const bool same_as_active =
     latched_stop_active_ &&
     active_stop_event_.sender == normalized_event.sender &&
-    active_stop_event_.reason == normalized_event.reason &&
-    active_stop_event_.status == normalized_event.status &&
-    active_stop_event_.value == normalized_event.value;
+    active_stop_event_.reason == normalized_event.reason;
 
   active_stop_event_ = normalized_event;
   latched_stop_active_ = true;
@@ -144,11 +139,9 @@ void SafetyControllerNode::latchStop(
 
     RCLCPP_ERROR(
       get_logger(),
-      "Latched safety stop from '%s': %s (status=%s, value=%.3f)",
+      "Latched safety stop from '%s': %s",
       active_stop_event_.sender.c_str(),
-      active_stop_event_.reason.c_str(),
-      active_stop_event_.status.c_str(),
-      active_stop_event_.value);
+      active_stop_event_.reason.c_str());
   }
 
   publishZeroCommands();
@@ -202,22 +195,9 @@ void SafetyControllerNode::publishStatus()
   }
 
   auto status = makeStatus("safety_controller", level, message);
-  status.values.push_back(keyValue("enabled", enabled_ ? "true" : "false"));
-  status.values.push_back(keyValue("latched_stop_active", latched_stop_active_ ? "true" : "false"));
-  status.values.push_back(keyValue("stop_topic_name", stop_topic_name_));
-  status.values.push_back(keyValue("wheel_stop_topic", wheel_stop_topic_));
-  status.values.push_back(keyValue("tool_stop_topic", tool_stop_topic_));
-  status.values.push_back(
-    keyValue("publish_zero_tool_command", publish_zero_tool_command_ ? "true" : "false"));
+  status.values.push_back(keyValue("stop_active", latched_stop_active_ ? "true" : "false"));
   status.values.push_back(keyValue("sender", active_stop_event_.sender));
   status.values.push_back(keyValue("reason", active_stop_event_.reason));
-  status.values.push_back(keyValue("status", active_stop_event_.status));
-  status.values.push_back(keyValue("value", std::to_string(active_stop_event_.value)));
-  status.values.push_back(
-    keyValue(
-      "stamp",
-      std::to_string(active_stop_event_.stamp.sec) + "." +
-      std::to_string(active_stop_event_.stamp.nanosec)));
   array.status.push_back(status);
 
   diagnostics_publisher_->publish(array);

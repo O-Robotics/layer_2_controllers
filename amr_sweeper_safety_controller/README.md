@@ -27,7 +27,7 @@ This package latches shared stop requests and forces the AMR Sweeper to a stop f
 
 ## Stop Message Type
 - `amr_sweeper_safety_msgs/msg/SafetyStop`
-- Fields: `stamp`, `sender`, `reason`, `status`, `value`
+- Fields: `stamp`, `sender`, `reason`
 
 ## Interfaces
 - Subscribes to `safety_msgs/stop` as `amr_sweeper_safety_msgs/msg/SafetyStop`.
