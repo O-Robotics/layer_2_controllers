@@ -46,6 +46,15 @@ diagnostic_msgs::msg::DiagnosticStatus makeStatus(
   return status;
 }
 
+builtin_interfaces::msg::Time toBuiltinTime(const rclcpp::Time & time)
+{
+  builtin_interfaces::msg::Time stamp;
+  const auto nanoseconds = time.nanoseconds();
+  stamp.sec = static_cast<int32_t>(nanoseconds / 1000000000LL);
+  stamp.nanosec = static_cast<uint32_t>(nanoseconds % 1000000000LL);
+  return stamp;
+}
+
 }  // namespace
 
 AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & options)
@@ -66,9 +75,9 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
   base_joint_state_publisher_ = create_publisher<sensor_msgs::msg::JointState>(
     "joint_states", rclcpp::SystemDefaultsQoS());
   safety_stop_publisher_ = create_publisher<std_msgs::msg::Bool>(
-    "safety_stop", rclcpp::SystemDefaultsQoS());
-  safety_diagnostics_publisher_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
-    "safety/status", rclcpp::SystemDefaultsQoS());
+    safety_state_topic_, rclcpp::SystemDefaultsQoS());
+  stop_request_publisher_ = create_publisher<amr_sweeper_safety_msgs::msg::SafetyStop>(
+    stop_topic_name_, rclcpp::SystemDefaultsQoS());
 
   reset_fault_service_ = create_service<std_srvs::srv::Trigger>(
     "amr_sweeper_attitude_controller/reset_fault",
@@ -104,6 +113,8 @@ void AttitudeControllerNode::loadParameters()
   tool_link_frame_ = declare_parameter("tool_link_frame", "tool_link");
   base_roll_joint_name_ = declare_parameter("base_roll_joint_name", "base_roll_joint");
   base_pitch_joint_name_ = declare_parameter("base_pitch_joint_name", "base_pitch_joint");
+  safety_state_topic_ = declare_parameter("safety_state_topic", "safety/stop_active");
+  stop_topic_name_ = declare_parameter("stop_topic_name", "safety_stop");
 
   publish_base_link_joint_states_ = declare_parameter("publish_base_link_joint_states", true);
   publish_tool_link_tf_ = declare_parameter("publish_tool_link_tf", false);
@@ -298,7 +309,6 @@ void AttitudeControllerNode::onTimer()
   }
 
   publishSafety(stamp, safety_state);
-  publishSafetyDiagnostics(stamp, safety_state);
 }
 
 void AttitudeControllerNode::publishAttitude(
@@ -373,48 +383,30 @@ void AttitudeControllerNode::publishBaseLinkJointStates(
 }
 
 void AttitudeControllerNode::publishSafety(
-  const rclcpp::Time &,
+  const rclcpp::Time & stamp,
   const StopSupervisorState & state)
 {
   std_msgs::msg::Bool msg;
   msg.data = safety_stop_enabled_ && state.stopped;
   safety_stop_publisher_->publish(msg);
-}
 
-void AttitudeControllerNode::publishSafetyDiagnostics(
-  const rclcpp::Time & stamp,
-  const StopSupervisorState & state)
-{
-  diagnostic_msgs::msg::DiagnosticArray array;
-  array.header.stamp = stamp;
+  const bool should_publish_stop_request =
+    msg.data && (!last_stop_request_active_ || last_stop_reason_ != state.reason);
 
-  unsigned char level = diagnostic_msgs::msg::DiagnosticStatus::OK;
-  if (!safety_stop_enabled_) {
-    level = diagnostic_msgs::msg::DiagnosticStatus::OK;
-  } else if (state.stopped) {
-    level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
-  } else if (state.warning) {
-    level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+  if (should_publish_stop_request) {
+    amr_sweeper_safety_msgs::msg::SafetyStop stop_request_msg;
+    stop_request_msg.stamp = toBuiltinTime(stamp);
+    stop_request_msg.sender = "amr_sweeper_attitude_controller";
+    stop_request_msg.reason = state.reason;
+    stop_request_msg.status = "ERROR";
+    stop_request_msg.value = std::max(
+      std::abs(radiansToDegrees(last_estimate_.roll_rad)),
+      std::abs(radiansToDegrees(last_estimate_.pitch_rad)));
+    stop_request_publisher_->publish(stop_request_msg);
   }
 
-  auto status = makeStatus(
-    "safety_stop_supervisor",
-    level,
-    safety_stop_enabled_ ? state.reason : "disabled");
-  status.values.push_back(keyValue("enabled", safety_stop_enabled_ ? "true" : "false"));
-  status.values.push_back(keyValue("stopped", state.stopped ? "true" : "false"));
-  status.values.push_back(keyValue("latched", state.latched ? "true" : "false"));
-  status.values.push_back(keyValue("roll_warning", state.roll_warning ? "true" : "false"));
-  status.values.push_back(keyValue("pitch_warning", state.pitch_warning ? "true" : "false"));
-  status.values.push_back(keyValue("roll_stop", state.roll_stop ? "true" : "false"));
-  status.values.push_back(keyValue("pitch_stop", state.pitch_stop ? "true" : "false"));
-  status.values.push_back(keyValue("shock", state.shock ? "true" : "false"));
-  status.values.push_back(keyValue("hard_decel", state.hard_decel ? "true" : "false"));
-  status.values.push_back(keyValue("nominal_roll_deg", stop_options_.nominal_roll_deg));
-  status.values.push_back(keyValue("nominal_pitch_deg", stop_options_.nominal_pitch_deg));
-  array.status.push_back(status);
-
-  safety_diagnostics_publisher_->publish(array);
+  last_stop_request_active_ = msg.data;
+  last_stop_reason_ = msg.data ? state.reason : "";
 }
 
 void AttitudeControllerNode::resetFaultService(
