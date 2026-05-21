@@ -22,18 +22,23 @@ struct ImuInput
   rclcpp::Time last_received_time{0, 0, RCL_ROS_TIME};
   bool has_message{false};
   bool healthy{false};
+  bool timeout_warning{false};
+  bool timeout_error{false};
   std::string health_reason{"no messages received"};
 };
 
 struct ImuHealthConfig
 {
-  double timeout_sec{0.25};
+  double timeout_warning_sec{0.3};
+  double timeout_error_sec{1.0};
   double max_accel_norm_error{2.0};
 };
 
 struct ImuHealth
 {
   bool healthy{false};
+  bool timeout_warning{false};
+  bool timeout_error{false};
   std::string reason;
 };
 
@@ -63,47 +68,54 @@ inline ImuHealth checkImuHealth(
   const ImuHealthConfig & config)
 {
   if (!input.has_message) {
-    return {false, "no messages received"};
+    return {false, false, true, "no messages received"};
   }
 
   if (isZeroTime(input.last_stamp)) {
-    return {false, "invalid timestamp"};
+    return {false, false, true, "invalid timestamp"};
   }
 
   if (!isFiniteVector(input.last_msg.linear_acceleration)) {
-    return {false, "linear acceleration contains non-finite values"};
+    return {false, false, true, "linear acceleration contains non-finite values"};
   }
 
   if (!isFiniteVector(input.last_msg.angular_velocity)) {
-    return {false, "angular velocity contains non-finite values"};
+    return {false, false, true, "angular velocity contains non-finite values"};
   }
 
   const double accel_norm = vectorNorm(input.last_msg.linear_acceleration);
   if (!std::isfinite(accel_norm)) {
-    return {false, "acceleration norm is non-finite"};
+    return {false, false, true, "acceleration norm is non-finite"};
   }
 
   if (std::abs(accel_norm - kGravityMetersPerSecondSquared) > config.max_accel_norm_error) {
-    return {false, "acceleration norm outside gravity range"};
+    return {false, false, true, "acceleration norm outside gravity range"};
   }
 
   if (!isZeroTime(input.last_received_time)) {
     const double receive_age = (now - input.last_received_time).seconds();
-    if (receive_age > config.timeout_sec) {
-      return {false, "message timeout"};
+    if (receive_age > config.timeout_error_sec) {
+      return {false, false, true, "message timeout error"};
+    }
+    if (receive_age > config.timeout_warning_sec) {
+      return {true, true, false, "message timeout warning"};
     }
   }
 
   const double stamp_age = (now - input.last_stamp).seconds();
-  if (stamp_age > config.timeout_sec) {
-    return {false, "stale timestamp"};
+  if (stamp_age > config.timeout_error_sec) {
+    return {false, false, true, "stale timestamp error"};
   }
 
-  if (stamp_age < -config.timeout_sec) {
-    return {false, "timestamp is in the future"};
+  if (stamp_age > config.timeout_warning_sec) {
+    return {true, true, false, "stale timestamp warning"};
   }
 
-  return {true, "ok"};
+  if (stamp_age < -config.timeout_error_sec) {
+    return {false, false, true, "timestamp is in the future"};
+  }
+
+  return {true, false, false, "ok"};
 }
 
 }  // namespace amr_sweeper_attitude_controller

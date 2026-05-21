@@ -19,7 +19,7 @@ This package estimates chassis attitude and exposes safety-stop supervision sign
 
 ## Launch Arguments
 - `namespace`: default `amr_sweeper`
-- `params_file`: default `<package_share>/config/attitude_controller.yaml`
+- `params_file`: default `<package_share>/config/amr_sweeper_attitude_controller.yaml`
 
 ## Overview
 `amr_sweeper_attitude_controller` subscribes to one or more IMU inputs, estimates roll and pitch, publishes attitude and diagnostic topics, and can publish base-attitude joint positions for the robot model. It also evaluates configurable warning, stop, and latch thresholds so higher layers can react to unsafe chassis attitude.
@@ -33,20 +33,17 @@ This package estimates chassis attitude and exposes safety-stop supervision sign
 - `base_pitch_joint_name`: default `base_pitch_joint`
 - `imu_topics`: default `["imu/data_raw"]`
 - `imu_weights`: default `[1.0]`
-- `imu_timeout_sec`: default `0.25`
+- `imu_timeout_warning_sec`: default `0.3`
+- `imu_timeout_error_sec`: default `1.0`
+- `imu_timeout_stop_enabled`: default `true`
 - `publish_rate_hz`: default `10.0`
 - `filter.type`: default `complementary`
-- `stop.roll_warning_deg`: default `8.0`
-- `stop.pitch_warning_deg`: default `8.0`
-- `stop.roll_stop_deg`: default `15.0`
-- `stop.pitch_stop_deg`: default `15.0`
-- `stop.roll_latch_deg`: default `25.0`
-- `stop.pitch_latch_deg`: default `25.0`
+- `stop.roll_warning_deg`: default `15.0`
+- `stop.pitch_warning_deg`: default `15.0`
+- `stop.roll_stop_deg`: default `30.0`
+- `stop.pitch_stop_deg`: default `30.0`
 - `stop.nominal_roll_deg`: default `0.0`
 - `stop.nominal_pitch_deg`: default `5.0`
-- `stop.hard_decel_threshold_mps2`: default `4.0`
-- `stop.shock_threshold_mps2`: default `12.0`
-- `stop.min_event_duration_ms`: default `80`
 - `stop.require_manual_reset`: default `true`
 
 ## Interfaces

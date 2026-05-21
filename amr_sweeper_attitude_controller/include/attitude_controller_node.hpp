@@ -57,7 +57,7 @@ private:
     std::shared_ptr<std_srvs::srv::SetBool::Response> response);
 
   bool attitude_estimation_enabled_{true};
-  bool safety_stop_enabled_{false};
+  bool safety_stop_enabled_{true};
   bool publish_base_link_joint_states_{true};
   bool publish_tool_link_tf_{false};
   bool tool_link_warning_logged_{false};
@@ -69,7 +69,9 @@ private:
   std::string base_pitch_joint_name_{"base_pitch_joint"};
   std::string stop_topic_name_{"safety_msgs/stop"};
 
-  double imu_timeout_sec_{0.25};
+  double imu_timeout_warning_sec_{0.3};
+  double imu_timeout_error_sec_{1.0};
+  bool imu_timeout_stop_enabled_{true};
   double publish_rate_hz_{50.0};
 
   std::vector<std::string> imu_topics_;

@@ -18,7 +18,7 @@ def generate_launch_description():
                     [
                         FindPackageShare("amr_sweeper_attitude_controller"),
                         "config",
-                        "attitude_controller.yaml",
+                        "amr_sweeper_attitude_controller.yaml",
                     ]
                 ),
             ),

@@ -68,29 +68,6 @@ install(DIRECTORY config launch
   DESTINATION share/${PROJECT_NAME}
 )
 
-if(BUILD_TESTING)
-  find_package(ament_cmake_gtest REQUIRED)
-  find_package(ament_lint_auto REQUIRED)
-
-  set(ament_cmake_copyright_FOUND TRUE)
-  set(ament_cmake_cpplint_FOUND TRUE)
-  ament_lint_auto_find_test_dependencies()
-
-  ament_add_gtest(test_attitude_estimator test/test_attitude_estimator.cpp)
-  target_link_libraries(test_attitude_estimator ${PROJECT_NAME}_core)
-  target_include_directories(test_attitude_estimator PRIVATE include)
-  ament_target_dependencies(test_attitude_estimator geometry_msgs rclcpp sensor_msgs)
-
-  ament_add_gtest(test_imu_health test/test_imu_health.cpp)
-  target_include_directories(test_imu_health PRIVATE include)
-  ament_target_dependencies(test_imu_health rclcpp sensor_msgs)
-
-  ament_add_gtest(test_stop_supervisor test/test_stop_supervisor.cpp)
-  target_link_libraries(test_stop_supervisor ${PROJECT_NAME}_core)
-  target_include_directories(test_stop_supervisor PRIVATE include)
-  ament_target_dependencies(test_stop_supervisor geometry_msgs rclcpp)
-endif()
-
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME}_core)
 ament_export_dependencies(

@@ -105,7 +105,7 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
 void AttitudeControllerNode::loadParameters()
 {
   attitude_estimation_enabled_ = declare_parameter("attitude_estimation_enabled", true);
-  safety_stop_enabled_ = declare_parameter("safety_stop_enabled", false);
+  safety_stop_enabled_ = declare_parameter("safety_stop_enabled", true);
 
   base_footprint_frame_ = declare_parameter("base_footprint_frame", "base_footprint");
   base_link_frame_ = declare_parameter("base_link_frame", "base_link");
@@ -122,11 +122,24 @@ void AttitudeControllerNode::loadParameters()
   imu_weights_ = declare_parameter<std::vector<double>>(
     "imu_weights", std::vector<double>{1.0});
 
-  imu_timeout_sec_ = declare_parameter("imu_timeout_sec", 0.25);
+  imu_timeout_warning_sec_ = declare_parameter("imu_timeout_warning_sec", 0.3);
+  imu_timeout_error_sec_ = declare_parameter("imu_timeout_error_sec", 1.0);
+  imu_timeout_stop_enabled_ = declare_parameter("imu_timeout_stop_enabled", true);
   publish_rate_hz_ = declare_parameter("publish_rate_hz", 50.0);
   if (publish_rate_hz_ <= 0.0) {
     RCLCPP_WARN(get_logger(), "publish_rate_hz must be positive; using 50.0 Hz");
     publish_rate_hz_ = 50.0;
+  }
+  if (imu_timeout_warning_sec_ <= 0.0) {
+    RCLCPP_WARN(get_logger(), "imu_timeout_warning_sec must be positive; using 0.3 s");
+    imu_timeout_warning_sec_ = 0.3;
+  }
+  if (imu_timeout_error_sec_ < imu_timeout_warning_sec_) {
+    RCLCPP_WARN(
+      get_logger(),
+      "imu_timeout_error_sec must be >= imu_timeout_warning_sec; using %.3f s",
+      imu_timeout_warning_sec_);
+    imu_timeout_error_sec_ = imu_timeout_warning_sec_;
   }
 
   estimator_options_.filter_type = declare_parameter("filter.type", "complementary");
@@ -135,18 +148,12 @@ void AttitudeControllerNode::loadParameters()
   estimator_options_.max_accel_norm_error =
     declare_parameter("filter.max_accel_norm_error", 2.0);
 
-  stop_options_.roll_warning_deg = declare_parameter("stop.roll_warning_deg", 8.0);
-  stop_options_.pitch_warning_deg = declare_parameter("stop.pitch_warning_deg", 8.0);
-  stop_options_.roll_stop_deg = declare_parameter("stop.roll_stop_deg", 15.0);
-  stop_options_.pitch_stop_deg = declare_parameter("stop.pitch_stop_deg", 15.0);
-  stop_options_.roll_latch_deg = declare_parameter("stop.roll_latch_deg", 25.0);
-  stop_options_.pitch_latch_deg = declare_parameter("stop.pitch_latch_deg", 25.0);
+  stop_options_.roll_warning_deg = declare_parameter("stop.roll_warning_deg", 15.0);
+  stop_options_.pitch_warning_deg = declare_parameter("stop.pitch_warning_deg", 15.0);
+  stop_options_.roll_stop_deg = declare_parameter("stop.roll_stop_deg", 30.0);
+  stop_options_.pitch_stop_deg = declare_parameter("stop.pitch_stop_deg", 30.0);
   stop_options_.nominal_roll_deg = declare_parameter("stop.nominal_roll_deg", 0.0);
   stop_options_.nominal_pitch_deg = declare_parameter("stop.nominal_pitch_deg", 5.0);
-  stop_options_.hard_decel_threshold_mps2 =
-    declare_parameter("stop.hard_decel_threshold_mps2", 4.0);
-  stop_options_.shock_threshold_mps2 = declare_parameter("stop.shock_threshold_mps2", 12.0);
-  stop_options_.min_event_duration_ms = declare_parameter("stop.min_event_duration_ms", 80);
   stop_options_.require_manual_reset = declare_parameter("stop.require_manual_reset", true);
 
   if (estimator_options_.filter_type != "complementary") {
@@ -251,14 +258,23 @@ bool AttitudeControllerNode::transformMeasurementToBaseLink(
 void AttitudeControllerNode::onTimer()
 {
   const auto stamp = now();
-  const ImuHealthConfig health_config{imu_timeout_sec_, estimator_options_.max_accel_norm_error};
+  const ImuHealthConfig health_config{
+    imu_timeout_warning_sec_, imu_timeout_error_sec_, estimator_options_.max_accel_norm_error};
   std::vector<ImuMeasurement> measurements;
   std::size_t healthy_imu_count = 0;
+  bool imu_timeout_error_active = false;
+  std::string imu_timeout_error_reason;
 
   for (auto & input : imu_inputs_) {
     const auto health = checkImuHealth(input, stamp, health_config);
     input.healthy = health.healthy;
+    input.timeout_warning = health.timeout_warning;
+    input.timeout_error = health.timeout_error;
     input.health_reason = health.reason;
+    if (health.timeout_error && imu_timeout_error_reason.empty()) {
+      imu_timeout_error_active = true;
+      imu_timeout_error_reason = input.topic + ": " + health.reason;
+    }
 
     if (!input.healthy) {
       continue;
@@ -299,9 +315,12 @@ void AttitudeControllerNode::onTimer()
   }
 
   StopSupervisorState safety_state;
-  if (safety_stop_enabled_ && last_estimate_.healthy) {
-    safety_state = stop_supervisor_.update(
-      last_estimate_, last_estimate_.fused_linear_acceleration, stamp);
+  if (safety_stop_enabled_ && imu_timeout_stop_enabled_ && imu_timeout_error_active) {
+    safety_state.stopped = true;
+    safety_state.latched = true;
+    safety_state.reason = "imu timeout error, " + imu_timeout_error_reason;
+  } else if (safety_stop_enabled_ && last_estimate_.healthy) {
+    safety_state = stop_supervisor_.update(last_estimate_);
   } else {
     safety_state.reason = safety_stop_enabled_ ? "waiting for healthy attitude" : "disabled";
   }
@@ -334,13 +353,38 @@ void AttitudeControllerNode::publishAttitudeDiagnostics(
   diagnostic_msgs::msg::DiagnosticArray array;
   array.header.stamp = stamp;
 
-  const auto level = attitude_estimation_enabled_ && estimate.healthy ?
-    diagnostic_msgs::msg::DiagnosticStatus::OK :
-    diagnostic_msgs::msg::DiagnosticStatus::WARN;
+  bool timeout_warning_active = false;
+  bool timeout_error_active = false;
+  std::string timeout_reason;
+  for (const auto & input : imu_inputs_) {
+    if (input.timeout_error && timeout_reason.empty()) {
+      timeout_error_active = true;
+      timeout_reason = input.topic + ": " + input.health_reason;
+    } else if (input.timeout_warning && timeout_reason.empty()) {
+      timeout_warning_active = true;
+      timeout_reason = input.topic + ": " + input.health_reason;
+    }
+  }
+
+  unsigned char level = diagnostic_msgs::msg::DiagnosticStatus::OK;
+  std::string estimator_message = "ok";
+  if (!attitude_estimation_enabled_) {
+    estimator_message = "disabled";
+  } else if (timeout_error_active) {
+    level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+    estimator_message = "imu timeout error, " + timeout_reason;
+  } else if (timeout_warning_active) {
+    level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+    estimator_message = "imu timeout warning, " + timeout_reason;
+  } else if (!estimate.healthy) {
+    level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+    estimator_message = "no healthy estimate";
+  }
+
   auto estimator_status = makeStatus(
     "attitude_estimator",
     level,
-    attitude_estimation_enabled_ ? (estimate.healthy ? "ok" : "no healthy estimate") : "disabled");
+    estimator_message);
   estimator_status.values.push_back(
     keyValue(
       "enabled",
@@ -356,10 +400,13 @@ void AttitudeControllerNode::publishAttitudeDiagnostics(
   array.status.push_back(estimator_status);
 
   for (const auto & input : imu_inputs_) {
+    unsigned char imu_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
+    if (!input.timeout_warning && !input.timeout_error && !input.healthy) {
+      imu_level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
+    }
     auto imu_status = makeStatus(
       "imu_input: " + input.topic,
-      input.healthy ? diagnostic_msgs::msg::DiagnosticStatus::OK :
-      diagnostic_msgs::msg::DiagnosticStatus::WARN,
+      imu_level,
       input.health_reason);
     imu_status.values.push_back(keyValue("weight", input.weight));
     imu_status.values.push_back(keyValue("topic", input.topic));
@@ -384,36 +431,26 @@ void AttitudeControllerNode::publishSafety(
   const rclcpp::Time & stamp,
   const StopSupervisorState & state)
 {
-  diagnostic_msgs::msg::DiagnosticArray array;
-  array.header.stamp = stamp;
+  const bool stop_active = safety_stop_enabled_ && state.stopped;
+  const bool should_publish_stop_request =
+    stop_active && (!last_stop_request_active_ || last_stop_reason_ != state.reason);
 
-  unsigned char level = diagnostic_msgs::msg::DiagnosticStatus::OK;
-  if (!safety_stop_enabled_) {
-    level = diagnostic_msgs::msg::DiagnosticStatus::OK;
-  } else if (state.stopped) {
-    level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
-  } else if (state.warning) {
-    level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
+  if (should_publish_stop_request) {
+    std::ostringstream reason_stream;
+    reason_stream << std::fixed << std::setprecision(1)
+                  << state.reason
+                  << ", roll=" << radiansToDegrees(last_estimate_.roll_rad) << " deg"
+                  << ", pitch=" << radiansToDegrees(last_estimate_.pitch_rad) << " deg";
+
+    amr_sweeper_safety_msgs::msg::SafetyStop stop_request_msg;
+    stop_request_msg.stamp = toBuiltinTime(stamp);
+    stop_request_msg.sender = "amr_sweeper_attitude_controller";
+    stop_request_msg.reason = reason_stream.str();
+    stop_request_publisher_->publish(stop_request_msg);
   }
 
-  auto status = makeStatus(
-    "safety_stop_supervisor",
-    level,
-    safety_stop_enabled_ ? state.reason : "disabled");
-  status.values.push_back(keyValue("enabled", safety_stop_enabled_ ? "true" : "false"));
-  status.values.push_back(keyValue("stopped", state.stopped ? "true" : "false"));
-  status.values.push_back(keyValue("latched", state.latched ? "true" : "false"));
-  status.values.push_back(keyValue("roll_warning", state.roll_warning ? "true" : "false"));
-  status.values.push_back(keyValue("pitch_warning", state.pitch_warning ? "true" : "false"));
-  status.values.push_back(keyValue("roll_stop", state.roll_stop ? "true" : "false"));
-  status.values.push_back(keyValue("pitch_stop", state.pitch_stop ? "true" : "false"));
-  status.values.push_back(keyValue("shock", state.shock ? "true" : "false"));
-  status.values.push_back(keyValue("hard_decel", state.hard_decel ? "true" : "false"));
-  status.values.push_back(keyValue("nominal_roll_deg", stop_options_.nominal_roll_deg));
-  status.values.push_back(keyValue("nominal_pitch_deg", stop_options_.nominal_pitch_deg));
-  array.status.push_back(status);
-
-  safety_diagnostics_publisher_->publish(array);
+  last_stop_request_active_ = stop_active;
+  last_stop_reason_ = stop_active ? state.reason : "";
 }
 
 void AttitudeControllerNode::resetFaultService(
