@@ -91,6 +91,16 @@ void quaternionToRollPitch(
   tf2::Matrix3x3(quaternion).getRPY(*roll_rad, *pitch_rad, yaw_rad);
 }
 
+double quantizeAngleRad(const double angle_rad, const double resolution_deg)
+{
+  const double resolution_rad = degreesToRadians(resolution_deg);
+  if (resolution_rad <= 0.0) {
+    return angle_rad;
+  }
+
+  return std::round(angle_rad / resolution_rad) * resolution_rad;
+}
+
 bool weightedAverageOrientation(
   const std::vector<ImuMeasurement> & measurements,
   double * roll_rad,
@@ -475,13 +485,18 @@ bool AttitudeControllerNode::transformMeasurementToBaseLink(
     const auto transform = tf_buffer_.lookupTransform(
       base_link_frame_, msg.header.frame_id, tf2::TimePointZero);
 
-    geometry_msgs::msg::QuaternionStamped orientation_in;
-    orientation_in.header = msg.header;
-    orientation_in.quaternion = msg.orientation;
-    geometry_msgs::msg::QuaternionStamped orientation_out;
-    tf2::doTransform(orientation_in, orientation_out, transform);
+    tf2::Quaternion q_world_imu;
+    tf2::fromMsg(msg.orientation, q_world_imu);
+
+    tf2::Quaternion q_base_imu;
+    tf2::fromMsg(transform.transform.rotation, q_base_imu);
+
+    const tf2::Quaternion q_imu_base = q_base_imu.inverse();
+    tf2::Quaternion q_world_base = q_world_imu * q_imu_base;
+    q_world_base.normalize();
+
     quaternionToRollPitch(
-      orientation_out.quaternion, &measurement->roll_rad, &measurement->pitch_rad);
+      tf2::toMsg(q_world_base), &measurement->roll_rad, &measurement->pitch_rad);
     return true;
   } catch (const tf2::TransformException & exception) {
     if (error_message != nullptr) {
@@ -533,8 +548,8 @@ void AttitudeControllerNode::onTimer()
     double roll_rad = 0.0;
     double pitch_rad = 0.0;
     if (weightedAverageOrientation(measurements, &roll_rad, &pitch_rad)) {
-      last_estimate_.roll_rad = roll_rad;
-      last_estimate_.pitch_rad = pitch_rad;
+      last_estimate_.roll_rad = quantizeAngleRad(roll_rad, 0.1);
+      last_estimate_.pitch_rad = quantizeAngleRad(pitch_rad, 0.1);
       last_estimate_.healthy = true;
     }
     publishAttitude(stamp, last_estimate_);
