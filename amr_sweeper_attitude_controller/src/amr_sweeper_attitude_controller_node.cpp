@@ -1,16 +1,21 @@
-#include "attitude_controller_node.hpp"
+#include "amr_sweeper_attitude_controller_node.hpp"
 
 #include <algorithm>
 #include <chrono>
 #include <cmath>
 #include <iomanip>
+#include <limits>
 #include <memory>
 #include <sstream>
 #include <string>
 #include <utility>
+#include <vector>
 
 #include "diagnostic_msgs/msg/diagnostic_status.hpp"
 #include "diagnostic_msgs/msg/key_value.hpp"
+#include "geometry_msgs/msg/quaternion_stamped.hpp"
+#include "tf2/LinearMath/Matrix3x3.h"
+#include "tf2/LinearMath/Quaternion.h"
 #include "tf2_geometry_msgs/tf2_geometry_msgs.hpp"
 
 namespace amr_sweeper_attitude_controller
@@ -56,17 +61,261 @@ builtin_interfaces::msg::Time toBuiltinTime(const rclcpp::Time & time)
   return stamp;
 }
 
+bool hasValidOrientation(const sensor_msgs::msg::Imu & msg)
+{
+  if (msg.orientation_covariance[0] < 0.0) {
+    return false;
+  }
+
+  const double norm =
+    (msg.orientation.x * msg.orientation.x) +
+    (msg.orientation.y * msg.orientation.y) +
+    (msg.orientation.z * msg.orientation.z) +
+    (msg.orientation.w * msg.orientation.w);
+
+  return std::isfinite(msg.orientation.x) &&
+         std::isfinite(msg.orientation.y) &&
+         std::isfinite(msg.orientation.z) &&
+         std::isfinite(msg.orientation.w) &&
+         norm > 1e-9;
+}
+
+void quaternionToRollPitch(
+  const geometry_msgs::msg::Quaternion & quaternion_msg,
+  double * roll_rad,
+  double * pitch_rad)
+{
+  tf2::Quaternion quaternion;
+  tf2::fromMsg(quaternion_msg, quaternion);
+  double yaw_rad = 0.0;
+  tf2::Matrix3x3(quaternion).getRPY(*roll_rad, *pitch_rad, yaw_rad);
+}
+
+bool weightedAverageOrientation(
+  const std::vector<ImuMeasurement> & measurements,
+  double * roll_rad,
+  double * pitch_rad)
+{
+  double roll_sin_sum = 0.0;
+  double roll_cos_sum = 0.0;
+  double pitch_sin_sum = 0.0;
+  double pitch_cos_sum = 0.0;
+  double total_weight = 0.0;
+
+  for (const auto & measurement : measurements) {
+    const double weight = std::max(0.0, measurement.weight);
+    if (weight <= 0.0) {
+      continue;
+    }
+
+    roll_sin_sum += std::sin(measurement.roll_rad) * weight;
+    roll_cos_sum += std::cos(measurement.roll_rad) * weight;
+    pitch_sin_sum += std::sin(measurement.pitch_rad) * weight;
+    pitch_cos_sum += std::cos(measurement.pitch_rad) * weight;
+    total_weight += weight;
+  }
+
+  if (total_weight <= 0.0) {
+    return false;
+  }
+
+  *roll_rad = std::atan2(roll_sin_sum, roll_cos_sum);
+  *pitch_rad = std::atan2(pitch_sin_sum, pitch_cos_sum);
+  return true;
+}
+
+void appendReason(
+  std::vector<std::string> * reasons, const bool condition,
+  const std::string & reason)
+{
+  if (condition) {
+    reasons->push_back(reason);
+  }
+}
+
+std::string joinReasons(const std::vector<std::string> & reasons)
+{
+  if (reasons.empty()) {
+    return "ok";
+  }
+
+  std::ostringstream stream;
+  for (std::size_t index = 0; index < reasons.size(); ++index) {
+    if (index > 0) {
+      stream << ", ";
+    }
+    stream << reasons[index];
+  }
+  return stream.str();
+}
+
 }  // namespace
+
+bool isFinite(double value)
+{
+  return std::isfinite(value);
+}
+
+bool isFiniteVector(const geometry_msgs::msg::Vector3 & vector)
+{
+  return isFinite(vector.x) && isFinite(vector.y) && isFinite(vector.z);
+}
+
+bool isZeroTime(const rclcpp::Time & stamp)
+{
+  return stamp.nanoseconds() == 0;
+}
+
+ImuHealth checkImuHealth(
+  const ImuInput & input,
+  const rclcpp::Time & now,
+  const ImuHealthConfig & config)
+{
+  if (!input.has_message) {
+    return {false, false, true, "no messages received"};
+  }
+
+  if (isZeroTime(input.last_stamp)) {
+    return {false, false, true, "invalid timestamp"};
+  }
+
+  if (!isFiniteVector(input.last_msg.linear_acceleration)) {
+    return {false, false, true, "linear acceleration contains non-finite values"};
+  }
+
+  if (!isFiniteVector(input.last_msg.angular_velocity)) {
+    return {false, false, true, "angular velocity contains non-finite values"};
+  }
+
+  if (input.last_msg.orientation_covariance[0] < 0.0) {
+    return {false, false, true, "orientation unavailable"};
+  }
+
+  if (!std::isfinite(input.last_msg.orientation.x) ||
+    !std::isfinite(input.last_msg.orientation.y) ||
+    !std::isfinite(input.last_msg.orientation.z) ||
+    !std::isfinite(input.last_msg.orientation.w))
+  {
+    return {false, false, true, "orientation contains non-finite values"};
+  }
+
+  if (!isZeroTime(input.last_received_time)) {
+    const double receive_age = (now - input.last_received_time).seconds();
+    if (receive_age > config.timeout_error_sec) {
+      return {false, false, true, "message timeout error"};
+    }
+    if (receive_age > config.timeout_warning_sec) {
+      return {true, true, false, "message timeout warning"};
+    }
+  }
+
+  const double stamp_age = (now - input.last_stamp).seconds();
+  if (stamp_age > config.timeout_error_sec) {
+    return {false, false, true, "stale timestamp error"};
+  }
+
+  if (stamp_age > config.timeout_warning_sec) {
+    return {true, true, false, "stale timestamp warning"};
+  }
+
+  if (stamp_age < -config.timeout_error_sec) {
+    return {false, false, true, "timestamp is in the future"};
+  }
+
+  return {true, false, false, "ok"};
+}
+
+double degreesToRadians(double degrees)
+{
+  return degrees * M_PI / 180.0;
+}
+
+double radiansToDegrees(double radians)
+{
+  return radians * 180.0 / M_PI;
+}
+
+StopSupervisor::StopSupervisor(const StopSupervisorOptions & options)
+: options_(options)
+{
+}
+
+void StopSupervisor::setOptions(const StopSupervisorOptions & options)
+{
+  options_ = options;
+}
+
+StopSupervisorState StopSupervisor::update(const AttitudeEstimate & attitude)
+{
+  StopSupervisorState next;
+
+  const double roll_error =
+    attitude.roll_rad - degreesToRadians(options_.nominal_roll_deg);
+  const double pitch_error =
+    attitude.pitch_rad - degreesToRadians(options_.nominal_pitch_deg);
+  const double abs_roll_error = std::abs(roll_error);
+  const double abs_pitch_error = std::abs(pitch_error);
+
+  next.roll_warning = abs_roll_error >= degreesToRadians(options_.roll_warning_deg);
+  next.pitch_warning = abs_pitch_error >= degreesToRadians(options_.pitch_warning_deg);
+  next.roll_stop = abs_roll_error >= degreesToRadians(options_.roll_stop_deg);
+  next.pitch_stop = abs_pitch_error >= degreesToRadians(options_.pitch_stop_deg);
+
+  next.warning = next.roll_warning || next.pitch_warning;
+  const bool stop_now = next.roll_stop || next.pitch_stop;
+
+  if (options_.require_manual_reset) {
+    next.latched = state_.latched || stop_now;
+    next.stopped = next.latched;
+  } else {
+    next.latched = false;
+    next.stopped = stop_now;
+  }
+
+  std::vector<std::string> reasons;
+  if (!next.roll_stop && !next.pitch_stop) {
+    if (next.roll_warning && next.pitch_warning) {
+      reasons.push_back("roll and pitch warning");
+    } else {
+      appendReason(&reasons, next.roll_warning, "roll warning");
+      appendReason(&reasons, next.pitch_warning, "pitch warning");
+    }
+  }
+
+  if (next.roll_stop && next.pitch_stop) {
+    reasons.push_back("roll and pitch stop");
+  } else {
+    appendReason(&reasons, next.roll_stop, "roll stop");
+    appendReason(&reasons, next.pitch_stop, "pitch stop");
+  }
+
+  appendReason(&reasons, next.latched && !stop_now, "manual reset required");
+  next.reason = joinReasons(reasons);
+
+  state_ = next;
+  return state_;
+}
+
+bool StopSupervisor::resetFault()
+{
+  state_.latched = false;
+  state_.stopped = false;
+  state_.reason = "reset";
+  return true;
+}
+
+StopSupervisorState StopSupervisor::state() const
+{
+  return state_;
+}
 
 AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & options)
 : Node("amr_sweeper_attitude_controller_node", options),
-  estimator_(estimator_options_),
   stop_supervisor_(stop_options_),
   tf_buffer_(this->get_clock()),
   tf_listener_(tf_buffer_)
 {
   loadParameters();
-  estimator_.setOptions(estimator_options_);
   stop_supervisor_.setOptions(stop_options_);
 
   attitude_publisher_ = create_publisher<geometry_msgs::msg::Vector3Stamped>(
@@ -142,12 +391,6 @@ void AttitudeControllerNode::loadParameters()
     imu_timeout_error_sec_ = imu_timeout_warning_sec_;
   }
 
-  estimator_options_.filter_type = declare_parameter("filter.type", "complementary");
-  estimator_options_.accel_alpha = declare_parameter("filter.accel_alpha", 0.02);
-  estimator_options_.gyro_alpha = declare_parameter("filter.gyro_alpha", 0.98);
-  estimator_options_.max_accel_norm_error =
-    declare_parameter("filter.max_accel_norm_error", 2.0);
-
   stop_options_.roll_warning_deg = declare_parameter("stop.roll_warning_deg", 15.0);
   stop_options_.pitch_warning_deg = declare_parameter("stop.pitch_warning_deg", 15.0);
   stop_options_.roll_stop_deg = declare_parameter("stop.roll_stop_deg", 30.0);
@@ -155,13 +398,6 @@ void AttitudeControllerNode::loadParameters()
   stop_options_.nominal_roll_deg = declare_parameter("stop.nominal_roll_deg", 0.0);
   stop_options_.nominal_pitch_deg = declare_parameter("stop.nominal_pitch_deg", 5.0);
   stop_options_.require_manual_reset = declare_parameter("stop.require_manual_reset", true);
-
-  if (estimator_options_.filter_type != "complementary") {
-    RCLCPP_WARN(
-      get_logger(),
-      "Only complementary filter is implemented; requested filter.type='%s'",
-      estimator_options_.filter_type.c_str());
-  }
 }
 
 void AttitudeControllerNode::configureImuInputs()
@@ -222,8 +458,14 @@ bool AttitudeControllerNode::transformMeasurementToBaseLink(
   ImuMeasurement * measurement,
   std::string * error_message)
 {
-  measurement->linear_acceleration = msg.linear_acceleration;
-  measurement->angular_velocity = msg.angular_velocity;
+  if (!hasValidOrientation(msg)) {
+    if (error_message != nullptr) {
+      *error_message = "orientation unavailable";
+    }
+    return false;
+  }
+
+  quaternionToRollPitch(msg.orientation, &measurement->roll_rad, &measurement->pitch_rad);
 
   if (msg.header.frame_id.empty() || msg.header.frame_id == base_link_frame_) {
     return true;
@@ -233,19 +475,13 @@ bool AttitudeControllerNode::transformMeasurementToBaseLink(
     const auto transform = tf_buffer_.lookupTransform(
       base_link_frame_, msg.header.frame_id, tf2::TimePointZero);
 
-    geometry_msgs::msg::Vector3Stamped accel_in;
-    accel_in.header = msg.header;
-    accel_in.vector = msg.linear_acceleration;
-    geometry_msgs::msg::Vector3Stamped accel_out;
-    tf2::doTransform(accel_in, accel_out, transform);
-    measurement->linear_acceleration = accel_out.vector;
-
-    geometry_msgs::msg::Vector3Stamped gyro_in;
-    gyro_in.header = msg.header;
-    gyro_in.vector = msg.angular_velocity;
-    geometry_msgs::msg::Vector3Stamped gyro_out;
-    tf2::doTransform(gyro_in, gyro_out, transform);
-    measurement->angular_velocity = gyro_out.vector;
+    geometry_msgs::msg::QuaternionStamped orientation_in;
+    orientation_in.header = msg.header;
+    orientation_in.quaternion = msg.orientation;
+    geometry_msgs::msg::QuaternionStamped orientation_out;
+    tf2::doTransform(orientation_in, orientation_out, transform);
+    quaternionToRollPitch(
+      orientation_out.quaternion, &measurement->roll_rad, &measurement->pitch_rad);
     return true;
   } catch (const tf2::TransformException & exception) {
     if (error_message != nullptr) {
@@ -258,8 +494,7 @@ bool AttitudeControllerNode::transformMeasurementToBaseLink(
 void AttitudeControllerNode::onTimer()
 {
   const auto stamp = now();
-  const ImuHealthConfig health_config{
-    imu_timeout_warning_sec_, imu_timeout_error_sec_, estimator_options_.max_accel_norm_error};
+  const ImuHealthConfig health_config{imu_timeout_warning_sec_, imu_timeout_error_sec_};
   std::vector<ImuMeasurement> measurements;
   std::size_t healthy_imu_count = 0;
   bool imu_timeout_error_active = false;
@@ -294,7 +529,14 @@ void AttitudeControllerNode::onTimer()
   }
 
   if (attitude_estimation_enabled_) {
-    last_estimate_ = estimator_.update(measurements, stamp);
+    last_estimate_ = AttitudeEstimate();
+    double roll_rad = 0.0;
+    double pitch_rad = 0.0;
+    if (weightedAverageOrientation(measurements, &roll_rad, &pitch_rad)) {
+      last_estimate_.roll_rad = roll_rad;
+      last_estimate_.pitch_rad = pitch_rad;
+      last_estimate_.healthy = true;
+    }
     publishAttitude(stamp, last_estimate_);
     publishAttitudeDiagnostics(stamp, last_estimate_, healthy_imu_count);
 
@@ -367,37 +609,37 @@ void AttitudeControllerNode::publishAttitudeDiagnostics(
   }
 
   unsigned char level = diagnostic_msgs::msg::DiagnosticStatus::OK;
-  std::string estimator_message = "ok";
+  std::string attitude_message = "ok";
   if (!attitude_estimation_enabled_) {
-    estimator_message = "disabled";
+    attitude_message = "disabled";
   } else if (timeout_error_active) {
     level = diagnostic_msgs::msg::DiagnosticStatus::ERROR;
-    estimator_message = "imu timeout error, " + timeout_reason;
+    attitude_message = "imu timeout error, " + timeout_reason;
   } else if (timeout_warning_active) {
     level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
-    estimator_message = "imu timeout warning, " + timeout_reason;
+    attitude_message = "imu timeout warning, " + timeout_reason;
   } else if (!estimate.healthy) {
     level = diagnostic_msgs::msg::DiagnosticStatus::WARN;
-    estimator_message = "no healthy estimate";
+    attitude_message = "no healthy orientation";
   }
 
-  auto estimator_status = makeStatus(
+  auto attitude_status = makeStatus(
     "attitude_estimator",
     level,
-    estimator_message);
-  estimator_status.values.push_back(
+    attitude_message);
+  attitude_status.values.push_back(
     keyValue(
       "enabled",
       attitude_estimation_enabled_ ? "true" : "false"));
-  estimator_status.values.push_back(
+  attitude_status.values.push_back(
     keyValue(
       "healthy_imu_count",
       static_cast<double>(healthy_imu_count)));
-  estimator_status.values.push_back(keyValue("roll_rad", estimate.roll_rad));
-  estimator_status.values.push_back(keyValue("pitch_rad", estimate.pitch_rad));
-  estimator_status.values.push_back(keyValue("roll_deg", radiansToDegrees(estimate.roll_rad)));
-  estimator_status.values.push_back(keyValue("pitch_deg", radiansToDegrees(estimate.pitch_rad)));
-  array.status.push_back(estimator_status);
+  attitude_status.values.push_back(keyValue("roll_rad", estimate.roll_rad));
+  attitude_status.values.push_back(keyValue("pitch_rad", estimate.pitch_rad));
+  attitude_status.values.push_back(keyValue("roll_deg", radiansToDegrees(estimate.roll_rad)));
+  attitude_status.values.push_back(keyValue("pitch_deg", radiansToDegrees(estimate.pitch_rad)));
+  array.status.push_back(attitude_status);
 
   for (const auto & input : imu_inputs_) {
     unsigned char imu_level = diagnostic_msgs::msg::DiagnosticStatus::OK;
@@ -468,7 +710,6 @@ void AttitudeControllerNode::enableAttitudeEstimationService(
 {
   attitude_estimation_enabled_ = request->data;
   if (!attitude_estimation_enabled_) {
-    estimator_.reset();
     last_estimate_ = AttitudeEstimate();
   }
 

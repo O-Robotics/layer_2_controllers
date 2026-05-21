@@ -16,30 +16,14 @@ find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 
-add_library(${PROJECT_NAME}_core
-  src/attitude_estimator.cpp
-  src/stop_supervisor.cpp
-)
-target_include_directories(${PROJECT_NAME}_core PUBLIC
-  $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
-  $<INSTALL_INTERFACE:include>
-)
-target_compile_features(${PROJECT_NAME}_core PUBLIC cxx_std_17)
-ament_target_dependencies(${PROJECT_NAME}_core
-  geometry_msgs
-  rclcpp
-  sensor_msgs
-)
-
 add_executable(amr_sweeper_attitude_controller_node
-  src/attitude_controller_node.cpp
+  src/amr_sweeper_attitude_controller_node.cpp
 )
 target_include_directories(amr_sweeper_attitude_controller_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>
 )
 target_compile_features(amr_sweeper_attitude_controller_node PUBLIC cxx_std_17)
-target_link_libraries(amr_sweeper_attitude_controller_node ${PROJECT_NAME}_core)
 ament_target_dependencies(amr_sweeper_attitude_controller_node
   amr_sweeper_safety_msgs
   diagnostic_msgs
@@ -53,7 +37,6 @@ ament_target_dependencies(amr_sweeper_attitude_controller_node
 )
 
 install(TARGETS
-  ${PROJECT_NAME}_core
   amr_sweeper_attitude_controller_node
   ARCHIVE DESTINATION lib
   LIBRARY DESTINATION lib
@@ -69,7 +52,6 @@ install(DIRECTORY config launch
 )
 
 ament_export_include_directories(include)
-ament_export_libraries(${PROJECT_NAME}_core)
 ament_export_dependencies(
   amr_sweeper_safety_msgs
   geometry_msgs

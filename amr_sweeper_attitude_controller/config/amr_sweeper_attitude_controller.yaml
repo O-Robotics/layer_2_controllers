@@ -16,7 +16,7 @@
 
     # ── IMU inputs ────────────────────────────────────────────────────────────
     imu_topics:
-      - imu/data_raw                           # Default IMU topic under the selected namespace.
+      - imu/data_raw                           # Default IMU topic under the selected namespace. The JY901 driver already includes fused orientation here.
     imu_weights:
       - 1.0                                    # Relative weight for the matching IMU topic above.
 
@@ -24,12 +24,6 @@
     imu_timeout_error_sec: 1.0                 # Raise an error if no fresh message arrives within this time.
     imu_timeout_stop_enabled: true             # Publish a safety stop when the IMU timeout reaches the error threshold.
     
-    # ── Attitude filter ───────────────────────────────────────────────────────
-    filter.type: complementary
-    filter.accel_alpha: 0.02                   # Accelerometer blending factor for long-term gravity alignment.
-    filter.gyro_alpha: 0.98                    # Gyroscope blending factor for short-term attitude tracking.
-    filter.max_accel_norm_error: 2.0           # Reject IMU samples whose acceleration norm deviates too far from expected gravity.
-
     # ── Safety-stop supervision ───────────────────────────────────────────────
     stop.nominal_roll_deg: 0.0                 # Expected nominal roll angle for the robot on level ground.
     stop.nominal_pitch_deg: 5.0                # Expected nominal pitch angle for the robot on level ground.

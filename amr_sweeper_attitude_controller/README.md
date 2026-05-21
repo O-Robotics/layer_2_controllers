@@ -22,11 +22,11 @@ This package estimates chassis attitude and exposes safety-stop supervision sign
 - `params_file`: default `<package_share>/config/amr_sweeper_attitude_controller.yaml`
 
 ## Overview
-`amr_sweeper_attitude_controller` subscribes to one or more IMU inputs, estimates roll and pitch, publishes attitude and diagnostic topics, and can publish base-attitude joint positions for the robot model. It also evaluates configurable warning, stop, and latch thresholds so higher layers can react to unsafe chassis attitude.
+`amr_sweeper_attitude_controller` subscribes to one or more IMU inputs, uses the IMU-provided orientation for roll and pitch, publishes attitude and diagnostic topics, and can publish base-attitude joint positions for the robot model. It also evaluates configurable warning and stop thresholds so higher layers can react to unsafe chassis attitude.
 
 ## Default Parameters
 - `attitude_estimation_enabled`: default `true`
-- `safety_stop_enabled`: default `false`
+- `safety_stop_enabled`: default `true`
 - `publish_base_link_joint_states`: default `true`
 - `publish_tool_link_tf`: default `false`
 - `base_roll_joint_name`: default `base_roll_joint`
@@ -37,7 +37,6 @@ This package estimates chassis attitude and exposes safety-stop supervision sign
 - `imu_timeout_error_sec`: default `1.0`
 - `imu_timeout_stop_enabled`: default `true`
 - `publish_rate_hz`: default `10.0`
-- `filter.type`: default `complementary`
 - `stop.roll_warning_deg`: default `15.0`
 - `stop.pitch_warning_deg`: default `15.0`
 - `stop.roll_stop_deg`: default `30.0`
@@ -47,7 +46,7 @@ This package estimates chassis attitude and exposes safety-stop supervision sign
 - `stop.require_manual_reset`: default `true`
 
 ## Interfaces
-- Subscribes to `imu/data_raw` in the selected robot namespace by default.
+- Subscribes to `imu/data_raw` in the selected robot namespace by default and uses the IMU orientation quaternion.
 - Publishes `attitude/roll_pitch` as `geometry_msgs/msg/Vector3Stamped` with `x=roll_rad`, `y=pitch_rad`, `z=0`.
 - Publishes `attitude/status` as `diagnostic_msgs/msg/DiagnosticArray`.
 - Publishes `joint_states` updates for `base_roll_joint` and `base_pitch_joint` by default so `robot_state_publisher` can resolve the `base_footprint -> base_link` attitude chain from the URDF.
