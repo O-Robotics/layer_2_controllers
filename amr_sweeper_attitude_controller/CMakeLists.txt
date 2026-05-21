@@ -6,11 +6,11 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
+find_package(amr_sweeper_safety_msgs REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(sensor_msgs REQUIRED)
-find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 find_package(tf2 REQUIRED)
 find_package(tf2_geometry_msgs REQUIRED)
@@ -41,11 +41,11 @@ target_include_directories(amr_sweeper_attitude_controller_node PUBLIC
 target_compile_features(amr_sweeper_attitude_controller_node PUBLIC cxx_std_17)
 target_link_libraries(amr_sweeper_attitude_controller_node ${PROJECT_NAME}_core)
 ament_target_dependencies(amr_sweeper_attitude_controller_node
+  amr_sweeper_safety_msgs
   diagnostic_msgs
   geometry_msgs
   rclcpp
   sensor_msgs
-  std_msgs
   std_srvs
   tf2
   tf2_geometry_msgs
@@ -94,6 +94,7 @@ endif()
 ament_export_include_directories(include)
 ament_export_libraries(${PROJECT_NAME}_core)
 ament_export_dependencies(
+  amr_sweeper_safety_msgs
   geometry_msgs
   rclcpp
   sensor_msgs

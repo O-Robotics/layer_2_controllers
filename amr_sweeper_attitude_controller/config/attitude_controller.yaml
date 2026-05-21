@@ -1,13 +1,14 @@
 amr_sweeper_attitude_controller_node:
   ros__parameters:
     attitude_estimation_enabled: true
-    safety_stop_enabled: false
+    safety_stop_enabled: true
 
     base_footprint_frame: base_footprint
     base_link_frame: base_link
     tool_link_frame: tool_link
     base_roll_joint_name: base_roll_joint
     base_pitch_joint_name: base_pitch_joint
+    stop_topic_name: safety_msgs/stop
 
     publish_base_link_joint_states: true
     publish_tool_link_tf: false
