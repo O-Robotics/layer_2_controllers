@@ -14,7 +14,7 @@ find_package(std_msgs REQUIRED)
 find_package(std_srvs REQUIRED)
 
 add_executable(amr_sweeper_safety_controller_node
-  src/safety_controller_node.cpp
+  src/amr_sweeper_safety_controller_node.cpp
 )
 target_include_directories(amr_sweeper_safety_controller_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>

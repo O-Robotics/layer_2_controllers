@@ -1,0 +1,5 @@
+tool_controller_node:
+  ros__parameters:
+    max_tool_speed_rad_s: 35.0
+    input_topic: cmd_vel_joy_tools
+    output_topic: controller_steadydrive/commands

@@ -16,8 +16,12 @@ This package converts tool-side joystick commands into the SteadyDrive controlle
 ## Available Launch Files
 - `tool_controller.launch.py`
 
+## Configuration Files
+- `config/amr_sweeper_tool_controller.yaml`
+
 ## Launch Arguments
 - `namespace`: default `amr_sweeper`
+- `params_file`: default `config/amr_sweeper_tool_controller.yaml`
 
 ## Overview
 `amr_sweeper_tool_controller` is the layer 2 adapter between operator tool commands and the layer 1 SteadyDrive controller interface. It subscribes to the tool joystick command topic and publishes motor-command values that the SteadyDrive side can consume.
@@ -25,4 +29,6 @@ This package converts tool-side joystick commands into the SteadyDrive controlle
 ## Notes
 - Consumes `cmd_vel_joy_tools`.
 - Publishes `controller_steadydrive/commands`.
+- Runtime node target: `amr_sweeper_tool_controller_node`.
+- Default runtime parameters live in `config/amr_sweeper_tool_controller.yaml`.
 - Requires the layer 1 SteadyDrive control path to be available.

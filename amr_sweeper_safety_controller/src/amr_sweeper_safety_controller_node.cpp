@@ -1,4 +1,4 @@
-#include "safety_controller_node.hpp"
+#include "amr_sweeper_safety_controller_node.hpp"
 
 #include <chrono>
 #include <sstream>
