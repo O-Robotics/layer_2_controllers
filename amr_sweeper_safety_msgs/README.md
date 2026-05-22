@@ -1,16 +1,27 @@
 # amr_sweeper_safety_msgs
 
-Shared ROS interfaces for AMR Sweeper safety-stop communication.
+```bash
+ros2 interface show amr_sweeper_safety_msgs/msg/SafetyStop
+```
 
-## Messages
+Dependencies to other AMR Sweeper packages:
+- None
+
+## Purpose
+This package defines the shared ROS interfaces used for AMR Sweeper safety-stop communication.
+
+## Interfaces
 - `SafetyStop.msg`
+
+## Overview
+`amr_sweeper_safety_msgs` is the common message package used by layer 2 controllers and any future safety-aware nodes that need to request or inspect a shared robot stop.
 
 ## SafetyStop
 - `stamp`: time the stop condition was produced
 - `sender`: node or subsystem that raised the stop
 - `reason`: human-readable stop reason
 
-## How To Use
+## Notes
 - Publish to `safety_msgs/stop` only when your node needs the robot to stop.
 - Keep `sender` stable and easy to identify in logs and diagnostics.
 - Make `reason` informative for debugging, not just for stopping.
