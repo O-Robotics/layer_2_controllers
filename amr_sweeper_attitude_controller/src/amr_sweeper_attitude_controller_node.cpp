@@ -478,6 +478,8 @@ bool AttitudeControllerNode::transformMeasurementToBaseLink(
   quaternionToRollPitch(msg.orientation, &measurement->roll_rad, &measurement->pitch_rad);
 
   if (msg.header.frame_id.empty() || msg.header.frame_id == base_link_frame_) {
+    measurement->roll_rad = -measurement->roll_rad;
+    measurement->pitch_rad = -measurement->pitch_rad;
     return true;
   }
 
@@ -497,6 +499,8 @@ bool AttitudeControllerNode::transformMeasurementToBaseLink(
 
     quaternionToRollPitch(
       tf2::toMsg(q_world_base), &measurement->roll_rad, &measurement->pitch_rad);
+    measurement->roll_rad = -measurement->roll_rad;
+    measurement->pitch_rad = -measurement->pitch_rad;
     return true;
   } catch (const tf2::TransformException & exception) {
     if (error_message != nullptr) {
