@@ -35,6 +35,7 @@ This package estimates chassis attitude and exposes safety-stop supervision sign
 - `imu_weights`: default `[1.0]`
 - `imu_timeout_warning_sec`: default `0.3`
 - `imu_timeout_error_sec`: default `1.0`
+- `imu_startup_grace_sec`: default `3.0`
 - `imu_timeout_stop_enabled`: default `true`
 - `publish_rate_hz`: default `10.0`
 - `stop.roll_warning_deg`: default `15.0`

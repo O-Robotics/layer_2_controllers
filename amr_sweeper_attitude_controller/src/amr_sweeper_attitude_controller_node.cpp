@@ -182,6 +182,11 @@ ImuHealth checkImuHealth(
   const ImuHealthConfig & config)
 {
   if (!input.has_message) {
+    if (!isZeroTime(input.last_received_time) &&
+      (now - input.last_received_time).seconds() < config.startup_grace_sec)
+    {
+      return {false, true, false, "waiting for first message during startup grace"};
+    }
     return {false, false, true, "no messages received"};
   }
 
@@ -325,6 +330,7 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
   tf_buffer_(this->get_clock()),
   tf_listener_(tf_buffer_)
 {
+  startup_time_ = now();
   loadParameters();
   stop_supervisor_.setOptions(stop_options_);
 
@@ -383,6 +389,7 @@ void AttitudeControllerNode::loadParameters()
 
   imu_timeout_warning_sec_ = declare_parameter("imu_timeout_warning_sec", 0.3);
   imu_timeout_error_sec_ = declare_parameter("imu_timeout_error_sec", 1.0);
+  imu_startup_grace_sec_ = declare_parameter("imu_startup_grace_sec", 3.0);
   imu_timeout_stop_enabled_ = declare_parameter("imu_timeout_stop_enabled", true);
   publish_rate_hz_ = declare_parameter("publish_rate_hz", 50.0);
   if (publish_rate_hz_ <= 0.0) {
@@ -399,6 +406,10 @@ void AttitudeControllerNode::loadParameters()
       "imu_timeout_error_sec must be >= imu_timeout_warning_sec; using %.3f s",
       imu_timeout_warning_sec_);
     imu_timeout_error_sec_ = imu_timeout_warning_sec_;
+  }
+  if (imu_startup_grace_sec_ < 0.0) {
+    RCLCPP_WARN(get_logger(), "imu_startup_grace_sec must be non-negative; using 0.0 s");
+    imu_startup_grace_sec_ = 0.0;
   }
 
   stop_options_.roll_warning_deg = declare_parameter("stop.roll_warning_deg", 15.0);
@@ -433,6 +444,7 @@ void AttitudeControllerNode::configureImuInputs()
     ImuInput input;
     input.topic = imu_topics_[index];
     input.weight = index < imu_weights_.size() ? imu_weights_[index] : 1.0;
+    input.last_received_time = startup_time_;
     if (input.weight <= 0.0) {
       RCLCPP_WARN(
         get_logger(), "IMU weight for '%s' must be positive; using 1.0", input.topic.c_str());
@@ -513,7 +525,10 @@ bool AttitudeControllerNode::transformMeasurementToBaseLink(
 void AttitudeControllerNode::onTimer()
 {
   const auto stamp = now();
-  const ImuHealthConfig health_config{imu_timeout_warning_sec_, imu_timeout_error_sec_};
+  const ImuHealthConfig health_config{
+    imu_timeout_warning_sec_,
+    imu_timeout_error_sec_,
+    imu_startup_grace_sec_};
   std::vector<ImuMeasurement> measurements;
   std::size_t healthy_imu_count = 0;
   bool imu_timeout_error_active = false;

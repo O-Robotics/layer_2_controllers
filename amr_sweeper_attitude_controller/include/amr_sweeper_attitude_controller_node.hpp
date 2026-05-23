@@ -52,6 +52,7 @@ struct ImuHealthConfig
 {
   double timeout_warning_sec{0.3};
   double timeout_error_sec{1.0};
+  double startup_grace_sec{0.0};
 };
 
 struct ImuHealth
@@ -149,6 +150,7 @@ private:
 
   double imu_timeout_warning_sec_{0.3};
   double imu_timeout_error_sec_{1.0};
+  double imu_startup_grace_sec_{3.0};
   bool imu_timeout_stop_enabled_{true};
   double publish_rate_hz_{50.0};
 
@@ -174,6 +176,7 @@ private:
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr enable_safety_service_;
 
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::Time startup_time_{0, 0, RCL_ROS_TIME};
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;
 };

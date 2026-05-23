@@ -1,17 +1,17 @@
-safety_controller:
+/**:
   ros__parameters:
-    enabled: true                    # Master enable for the Layer 2 safety controller.
-    publish_rate_hz: 20.0            # While latched, zero wheel and tool commands are republished at this rate.
+    enabled:                           true                # Master enable for the Layer 2 safety controller.
+    publish_rate_hz:                   20.0                # While latched, zero wheel and tool commands are republished at this rate.
 
-    # -- Common stop input -----------------------------------------------------
-    stop_topic_name: safety_msgs/stop  # Shared amr_sweeper_safety_msgs/SafetyStop topic any package can publish to.
+    # -- Common stop input ----------------------------------------------------
+    stop_topic_name:                   safety_msgs/stop    # Shared amr_sweeper_safety_msgs/SafetyStop topic any package can publish to.
 
-    # -- Stop-command outputs --------------------------------------------------
-    wheel_stop_topic: cmd_vel_safety_stop  # Highest-priority wheel stop command consumed by twist_mux.
-    tool_stop_topic: cmd_vel_joy_tools     # Zero tool command republished while latched to stop the tool path too.
-    publish_zero_tool_command: true        # Keep the tool controller forced to zero while the stop is latched.
+    # -- Stop-command outputs -------------------------------------------------
+    wheel_stop_topic:                  cmd_vel_safety_stop # Highest-priority wheel stop command consumed by twist_mux.
+    tool_stop_topic:                   cmd_vel_joy_tools   # Zero tool command republished while latched to stop the tool path too.
+    publish_zero_tool_command:         true                # Keep the tool controller forced to zero while the stop is latched.
 
-    # -- Future integrations ---------------------------------------------------
-    navigation_stop_placeholder_enabled: true  # Log where Nav2 action-goal cancellation should be wired next.
-    motor_stop_placeholder_enabled: true       # Log where direct hardware stop commands should be wired next.
-    future_motor_stop_interfaces: []           # Reserve direct motor-stop service or topic names here for later use.
+    # -- Future integrations --------------------------------------------------
+    navigation_stop_placeholder_enabled: true              # Log where Nav2 action-goal cancellation should be wired next.
+    motor_stop_placeholder_enabled:      true              # Log where direct hardware stop commands should be wired next.
+    future_motor_stop_interfaces:        []                # Reserve direct motor-stop service or topic names here for later use.
