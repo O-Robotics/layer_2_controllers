@@ -21,7 +21,7 @@ def generate_launch_description():
         ),
         Node(
             package='amr_sweeper_wheel_controller',
-            executable='amr_sweeper_wheel_controller_node',
+            executable='wheel_controller_node',
             namespace=namespace,
             name='wheel_command_stamper',
             output='screen',

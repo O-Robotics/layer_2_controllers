@@ -21,7 +21,7 @@ def generate_launch_description():
         ),
         Node(
             package='amr_sweeper_tool_controller',
-            executable='amr_sweeper_tool_controller_node',
+            executable='tool_controller_node',
             namespace=namespace,
             name='tool_controller_node',
             output='screen',

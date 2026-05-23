@@ -12,6 +12,7 @@ find_package(rclcpp REQUIRED)
 add_executable(amr_sweeper_wheel_controller_node
   src/amr_sweeper_wheel_controller_node.cpp
 )
+set_target_properties(amr_sweeper_wheel_controller_node PROPERTIES OUTPUT_NAME wheel_controller_node)
 target_include_directories(amr_sweeper_wheel_controller_node PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
   $<INSTALL_INTERFACE:include>

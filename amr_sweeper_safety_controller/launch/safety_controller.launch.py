@@ -24,7 +24,7 @@ def generate_launch_description():
             ),
             Node(
                 package="amr_sweeper_safety_controller",
-                executable="amr_sweeper_safety_controller_node",
+                executable="safety_controller_node",
                 name="safety_controller",
                 namespace=namespace,
                 output="screen",
