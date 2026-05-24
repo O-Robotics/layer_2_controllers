@@ -7,7 +7,7 @@
     stop_topic_name:                   safety_msgs/stop    # Shared amr_sweeper_safety_msgs/SafetyStop topic any package can publish to.
 
     # -- Stop-command outputs -------------------------------------------------
-    wheel_stop_topic:                  cmd_vel_safety_stop # Highest-priority wheel stop command consumed by twist_mux.
+    wheel_stop_topic:                  cmd_vel_safety_stop # Highest-priority wheel stop command consumed by the sweeping controller.
     tool_stop_topic:                   cmd_vel_joy_tools   # Zero tool command republished while latched to stop the tool path too.
     publish_zero_tool_command:         true                # Keep the tool controller forced to zero while the stop is latched.
 

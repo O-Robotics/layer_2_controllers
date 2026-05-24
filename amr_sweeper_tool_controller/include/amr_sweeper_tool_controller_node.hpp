@@ -20,7 +20,7 @@ private:
   void onCommand(const geometry_msgs::msg::Twist::SharedPtr msg);
 
   double max_tool_speed_rad_s_{35.0};
-  std::string input_topic_{"cmd_vel_joy_tools"};
+  std::string input_topic_{"cmd_vel_sweep_tools"};
   std::string output_topic_{"controller_steadydrive/commands"};
 
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr subscription_;

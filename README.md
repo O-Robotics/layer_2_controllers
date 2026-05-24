@@ -7,7 +7,7 @@ ros2 launch amr_sweeper_layer_2_controllers_bringup amr_sweeper_layer_2_controll
 Dependencies to other AMR Sweeper packages:
 - `amr_sweeper_layer_2_controllers_bringup`
 - `amr_sweeper_joystick`
-- `amr_sweeper_twist_mux`
+- `amr_sweeper_sweeping_controller`
 - `amr_sweeper_wheel_controller`
 - `amr_sweeper_tool_controller`
 - `amr_sweeper_attitude_controller`
@@ -21,7 +21,7 @@ This repository is the controller layer for the AMR Sweeper. It turns human or a
 ## Launch Arguments
 - `namespace`: default `amr_sweeper`
 - `use_amr_sweeper_joystick`: default `true`
-- `use_amr_sweeper_twist_mux`: default `true`
+- `use_amr_sweeper_sweeping_controller`: default `true`
 - `use_amr_sweeper_wheel_controller`: default `true`
 - `use_amr_sweeper_tool_controller`: default `true`
 - `use_amr_sweeper_attitude_controller`: default `true`
@@ -29,7 +29,7 @@ This repository is the controller layer for the AMR Sweeper. It turns human or a
 - `joy_dev`: default `/dev/input/js0`
 
 ## Overview
-Layer 2 sits between the hardware interfaces in layer 1 and the higher-level decision-making in layer 3. It contains the joystick input path, the command arbitration path for wheel motion, the relay into the wheel ODrive controller, the tool command mapper for the SteadyDrive tool motors, the attitude supervision path driven by the robot IMU, and the shared latched safety-stop controller.
+Layer 2 sits between the hardware interfaces in layer 1 and the higher-level decision-making in layer 3. It contains the joystick input path, the sweeping-controller arbitration path for wheel and tool motion, the relay into the wheel ODrive controller, the tool command mapper for the SteadyDrive tool motors, the attitude supervision path driven by the robot IMU, and the shared latched safety-stop controller.
 
 ## Notes
 - The default command launches the full layer 2 controller bringup package.

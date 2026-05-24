@@ -19,7 +19,7 @@ private:
   void loadParameters();
   void onCommand(const geometry_msgs::msg::Twist::SharedPtr msg);
 
-  std::string input_topic_{"cmd_vel_wheels"};
+  std::string input_topic_{"cmd_vel_sweep_wheels"};
   std::string output_topic_{"diff_cont/cmd_vel"};
   std::string frame_id_{"base_footprint"};
 

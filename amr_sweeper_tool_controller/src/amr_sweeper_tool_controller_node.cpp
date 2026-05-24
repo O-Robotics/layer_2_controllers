@@ -28,7 +28,7 @@ ToolControllerNode::ToolControllerNode(const rclcpp::NodeOptions & options)
 void ToolControllerNode::loadParameters()
 {
   max_tool_speed_rad_s_ = declare_parameter("max_tool_speed_rad_s", 35.0);
-  input_topic_ = declare_parameter("input_topic", std::string{"cmd_vel_joy_tools"});
+  input_topic_ = declare_parameter("input_topic", std::string{"cmd_vel_sweep_tools"});
   output_topic_ = declare_parameter(
     "output_topic", std::string{"controller_steadydrive/commands"});
 }

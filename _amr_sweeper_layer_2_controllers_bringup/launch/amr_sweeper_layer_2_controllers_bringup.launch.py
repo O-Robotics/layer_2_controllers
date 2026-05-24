@@ -19,7 +19,7 @@ def _launch_file(package_name: str, launch_file_name: str):
 def generate_launch_description():
     namespace = LaunchConfiguration("namespace")
     use_amr_sweeper_joystick = LaunchConfiguration("use_amr_sweeper_joystick")
-    use_amr_sweeper_twist_mux = LaunchConfiguration("use_amr_sweeper_twist_mux")
+    use_amr_sweeper_sweeping_controller = LaunchConfiguration("use_amr_sweeper_sweeping_controller")
     use_amr_sweeper_wheel_controller = LaunchConfiguration("use_amr_sweeper_wheel_controller")
     use_amr_sweeper_tool_controller = LaunchConfiguration("use_amr_sweeper_tool_controller")
     use_amr_sweeper_attitude_controller = LaunchConfiguration("use_amr_sweeper_attitude_controller")
@@ -29,7 +29,7 @@ def generate_launch_description():
     return LaunchDescription([
         DeclareLaunchArgument("namespace", default_value="amr_sweeper"),
         DeclareLaunchArgument("use_amr_sweeper_joystick", default_value="true"),
-        DeclareLaunchArgument("use_amr_sweeper_twist_mux", default_value="true"),
+        DeclareLaunchArgument("use_amr_sweeper_sweeping_controller", default_value="true"),
         DeclareLaunchArgument("use_amr_sweeper_wheel_controller", default_value="true"),
         DeclareLaunchArgument("use_amr_sweeper_tool_controller", default_value="true"),
         DeclareLaunchArgument("use_amr_sweeper_attitude_controller", default_value="true"),
@@ -41,9 +41,10 @@ def generate_launch_description():
             condition=IfCondition(use_amr_sweeper_joystick),
         ),
         IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(_launch_file("amr_sweeper_twist_mux", "twist_mux.launch.py")),
+            PythonLaunchDescriptionSource(
+                _launch_file("amr_sweeper_sweeping_controller", "sweeping_controller.launch.py")),
             launch_arguments={"namespace": namespace}.items(),
-            condition=IfCondition(use_amr_sweeper_twist_mux),
+            condition=IfCondition(use_amr_sweeper_sweeping_controller),
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(_launch_file("amr_sweeper_wheel_controller", "wheel_controller.launch.py")),

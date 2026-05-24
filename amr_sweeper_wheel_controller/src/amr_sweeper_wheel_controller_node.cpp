@@ -27,7 +27,7 @@ WheelControllerNode::WheelControllerNode(const rclcpp::NodeOptions & options)
 
 void WheelControllerNode::loadParameters()
 {
-  input_topic_ = declare_parameter("input_topic", std::string{"cmd_vel_wheels"});
+  input_topic_ = declare_parameter("input_topic", std::string{"cmd_vel_sweep_wheels"});
   output_topic_ = declare_parameter("output_topic", std::string{"diff_cont/cmd_vel"});
   frame_id_ = declare_parameter("frame_id", std::string{"base_footprint"});
 }

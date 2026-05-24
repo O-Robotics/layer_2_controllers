@@ -1,0 +1,45 @@
+sweeping_controller_node:
+  ros__parameters:
+    publish_rate_hz:                    20.0                     # Command arbitration and output publish rate in hertz. Default: 20.0
+    wheel_output_topic:                 cmd_vel_sweep_wheels     # Wheel command topic forwarded downstream to the wheel controller. Default: cmd_vel_sweep_wheels
+    tool_output_topic:                  cmd_vel_sweep_tools      # Tool command topic forwarded downstream to the tool controller. Default: cmd_vel_sweep_tools
+    status_topic:                       sweeping_controller/status # Status topic describing the active wheel and tool command sources. Default: sweeping_controller/status
+
+    # -- Wheel command sources -----------------------------------------------
+    wheel_sources.safety_stop.enabled:  true                     # Enable the wheel safety-stop input path. Default: true
+    wheel_sources.safety_stop.topic:    cmd_vel_safety_stop      # Highest-priority wheel stop topic injected by the independent safety controller. Default: cmd_vel_safety_stop
+    wheel_sources.safety_stop.timeout_seconds: 0.5               # Hold the wheel safety-stop command active while fresh. Default: 0.5
+    wheel_sources.safety_stop.priority: 255                      # Highest wheel command priority so a safety stop overrides all other motion sources. Default: 255
+
+    wheel_sources.joystick.enabled:     true                     # Enable the wheel joystick override input path. Default: true
+    wheel_sources.joystick.topic:       cmd_vel_joy_wheels       # Raw joystick wheel command topic published by the teleop stack. Default: cmd_vel_joy_wheels
+    wheel_sources.joystick.timeout_seconds: 1.0                  # Hold joystick wheel override for 1 second before handing back to navigation. Default: 1.0
+    wheel_sources.joystick.priority:    100                      # Wheel joystick priority above navigation and below safety stop. Default: 100
+
+    wheel_sources.navigation.enabled:   true                     # Enable the Nav2 wheel motion input path. Default: true
+    wheel_sources.navigation.topic:     cmd_vel_nav              # Nav2 wheel motion topic consumed when no higher-priority override is active. Default: cmd_vel_nav
+    wheel_sources.navigation.timeout_seconds: 0.5                # Navigation command freshness window in seconds. Default: 0.5
+    wheel_sources.navigation.priority:  5                        # Wheel navigation priority below safety stop and joystick override. Default: 5
+
+    # -- Tool command sources ------------------------------------------------
+    tool_sources.safety_stop.enabled:   true                     # Enable the tool safety-stop input path. Default: true
+    tool_sources.safety_stop.topic:     cmd_vel_safety_stop      # Highest-priority tool stop topic injected by the independent safety controller. Default: cmd_vel_safety_stop
+    tool_sources.safety_stop.timeout_seconds: 0.5                # Hold the tool safety-stop command active while fresh. Default: 0.5
+    tool_sources.safety_stop.priority:  255                      # Highest tool command priority so a safety stop overrides all other tool sources. Default: 255
+
+    tool_sources.joystick.enabled:      true                     # Enable the tool joystick command input path. Default: true
+    tool_sources.joystick.topic:        cmd_vel_joy_tools        # Raw joystick tool command topic published by the teleop stack. Default: cmd_vel_joy_tools
+    tool_sources.joystick.timeout_seconds: 1.0                   # Tool joystick freshness window in seconds. Default: 1.0
+    tool_sources.joystick.priority:     100                      # Tool joystick priority below safety stop. Default: 100
+
+    tool_sources.navigation.enabled:    true                     # Enable derived autonomous tool motion from the Nav2 wheel command input. Default: true
+    tool_sources.navigation.topic:      cmd_vel_nav              # Reference navigation topic name documented alongside the derived tool motion path. Default: cmd_vel_nav
+    tool_sources.navigation.timeout_seconds: 0.5                 # Derived autonomous tool command freshness window in seconds. Default: 0.5
+    tool_sources.navigation.priority:   5                        # Derived autonomous tool motion priority below safety stop and joystick override. Default: 5
+    tool_sources.navigation.mapping_enabled: true                # Generate tool twist commands from incoming navigation wheel twists when autonomy is active. Default: true
+    tool_sources.navigation.linear_x_offset: 0.0                 # Constant offset added to the derived tool linear.x command. Default: 0.0
+    tool_sources.navigation.linear_x_from_linear_x_gain: 1.0     # Gain from navigation linear.x into tool linear.x for autonomous sweeping. Default: 1.0
+    tool_sources.navigation.linear_x_from_angular_z_gain: 0.0    # Gain from navigation angular.z into tool linear.x for autonomous sweeping. Default: 0.0
+    tool_sources.navigation.angular_z_offset: 0.0                # Constant offset added to the derived tool angular.z command. Default: 0.0
+    tool_sources.navigation.angular_z_from_linear_x_gain: 0.0    # Gain from navigation linear.x into tool angular.z for autonomous sweeping. Default: 0.0
+    tool_sources.navigation.angular_z_from_angular_z_gain: 1.0   # Gain from navigation angular.z into tool angular.z for autonomous sweeping. Default: 1.0

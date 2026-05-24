@@ -8,7 +8,7 @@ Dependencies to other AMR Sweeper packages:
 - `amr_sweeper_odrive`
 
 ## Purpose
-This package stamps layer 2 wheel commands and forwards them into the ODrive wheel controller path used by the AMR Sweeper.
+This package stamps selected layer 2 wheel commands and forwards them into the ODrive wheel controller path used by the AMR Sweeper.
 
 ## Main Launch File
 `launch/wheel_controller.launch.py`
@@ -24,10 +24,10 @@ This package stamps layer 2 wheel commands and forwards them into the ODrive whe
 - `params_file`: default `config/amr_sweeper_wheel_controller.yaml`
 
 ## Overview
-`amr_sweeper_wheel_controller` acts as the final layer 2 bridge before wheel commands reach the layer 1 ODrive control interface. It takes the selected `geometry_msgs/Twist` wheel command stream, stamps it as `geometry_msgs/TwistStamped`, and publishes it to the `diff_cont` command topic provided by the ODrive ros2_control setup.
+`amr_sweeper_wheel_controller` acts as the final layer 2 bridge before wheel commands reach the layer 1 ODrive control interface. It takes the selected `geometry_msgs/Twist` wheel command stream from the sweeping controller, stamps it as `geometry_msgs/TwistStamped`, and publishes it to the `diff_cont` command topic provided by the ODrive ros2_control setup.
 
 ## Notes
-- Default input topic: `cmd_vel_wheels`.
+- Default input topic: `cmd_vel_sweep_wheels`.
 - Default output topic: `diff_cont/cmd_vel`.
 - Runtime node target: `amr_sweeper_wheel_controller_node`.
 - Default runtime parameters live in `config/amr_sweeper_wheel_controller.yaml`.

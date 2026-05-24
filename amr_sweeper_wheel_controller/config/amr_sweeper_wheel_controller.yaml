@@ -1,5 +1,5 @@
 wheel_command_stamper:
   ros__parameters:
-    input_topic: cmd_vel_wheels
+    input_topic: cmd_vel_sweep_wheels
     output_topic: diff_cont/cmd_vel
     frame_id: base_footprint
