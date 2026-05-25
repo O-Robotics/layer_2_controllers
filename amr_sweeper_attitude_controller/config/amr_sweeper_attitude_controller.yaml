@@ -22,7 +22,7 @@
 
     imu_timeout_warning_sec: 0.3               # Raise a warning if no fresh message arrives within this time.
     imu_timeout_error_sec: 1.0                 # Raise an error if no fresh message arrives within this time.
-    imu_startup_grace_sec: 3.0                 # Allow startup time for the first IMU message before timeout errors can latch a stop.
+    imu_startup_grace_sec: 6.0                 # Allow the serial IMU driver to finish opening and configuring before timeout errors can latch a stop.
     imu_timeout_stop_enabled: true             # Publish a safety stop when the IMU timeout reaches the error threshold.
     
     # -- Safety-stop supervision -----------------------------------------------
