@@ -1,5 +1,6 @@
-tool_controller_node:
+/**/tool_controller_node:
   ros__parameters:
-    max_tool_speed_rad_s: 35.0
-    input_topic: cmd_vel_sweep_tools
-    output_topic: controller_steadydrive/commands
+    # -- Tool command conversion ----------------------------------------------
+    max_tool_speed_rad_s:  35.0                           # Maximum brush motor speed commanded when tool twist inputs saturate.
+    input_topic:           cmd_vel_sweep_tools            # Sweeping-controller tool twist topic consumed by this node.
+    output_topic:          controller_steadydrive/commands  # ros2_control command topic for the Steadydrive tool controller.

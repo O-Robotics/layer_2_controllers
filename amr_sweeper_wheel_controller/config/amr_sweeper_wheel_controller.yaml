@@ -1,5 +1,6 @@
-wheel_command_stamper:
+/**/wheel_command_stamper:
   ros__parameters:
-    input_topic: cmd_vel_sweep_wheels
-    output_topic: diff_cont/cmd_vel
-    frame_id: base_footprint
+    # -- Wheel command stamping -----------------------------------------------
+    input_topic:   cmd_vel_sweep_wheels  # Sweeping-controller wheel twist topic consumed by this node.
+    output_topic:  diff_cont/cmd_vel     # ros2_control diff-drive controller command topic.
+    frame_id:      base_footprint        # Frame ID attached to the stamped Twist message.
