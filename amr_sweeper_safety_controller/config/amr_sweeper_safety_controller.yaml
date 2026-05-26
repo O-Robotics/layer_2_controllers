@@ -10,8 +10,12 @@
     wheel_stop_topic:                  cmd_vel_safety_stop # Highest-priority wheel stop command consumed by the sweeping controller.
     tool_stop_topic:                   cmd_vel_joy_tools   # Zero tool command republished while latched to stop the tool path too.
     publish_zero_tool_command:         true                # Keep the tool controller forced to zero while the stop is latched.
+    publish_direct_hardware_stop:      true                # Also publish zero commands at the final wheel and tool controller inputs.
+    wheel_hardware_stop_topic:         diff_cont/cmd_vel   # Final stamped wheel-command topic consumed by the ODrive diff controller path.
+    tool_hardware_stop_topic:          controller_steadydrive/commands # Final SteadyDrive command topic for the tool motors.
 
-    # -- Future integrations --------------------------------------------------
-    navigation_stop_placeholder_enabled: true              # Log where Nav2 action-goal cancellation should be wired next.
+    # -- Mission and hardware stop integrations -------------------------------
+    mission_stop_enabled:                true              # Call layer 0 end_mission when a new safety stop latches.
+    end_mission_service:                 end_mission       # Mission-executor service used to abort the active mission and request IDLING.
     motor_stop_placeholder_enabled:      true              # Log where direct hardware stop commands should be wired next.
     future_motor_stop_interfaces:        []                # Reserve direct motor-stop service or topic names here for later use.

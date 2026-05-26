@@ -59,6 +59,12 @@ SafetyControllerNode::SafetyControllerNode(const rclcpp::NodeOptions & options)
     wheel_stop_topic_, rclcpp::SystemDefaultsQoS());
   tool_stop_publisher_ = create_publisher<geometry_msgs::msg::Twist>(
     tool_stop_topic_, rclcpp::SystemDefaultsQoS());
+  wheel_hardware_stop_publisher_ = create_publisher<geometry_msgs::msg::TwistStamped>(
+    wheel_hardware_stop_topic_, rclcpp::SystemDefaultsQoS());
+  tool_hardware_stop_publisher_ = create_publisher<std_msgs::msg::Float64MultiArray>(
+    tool_hardware_stop_topic_, rclcpp::SystemDefaultsQoS());
+  end_mission_client_ =
+    create_client<amr_sweeper_mission_executor::srv::EndMission>(end_mission_service_name_);
   diagnostics_publisher_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
     "safety_controller/status", rclcpp::SystemDefaultsQoS());
 
@@ -94,12 +100,17 @@ void SafetyControllerNode::loadParameters()
   wheel_stop_topic_ = declare_parameter("wheel_stop_topic", "cmd_vel_safety_stop");
   tool_stop_topic_ = declare_parameter("tool_stop_topic", "cmd_vel_joy_tools");
   publish_zero_tool_command_ = declare_parameter("publish_zero_tool_command", true);
+  publish_direct_hardware_stop_ = declare_parameter("publish_direct_hardware_stop", true);
+  wheel_hardware_stop_topic_ = declare_parameter(
+    "wheel_hardware_stop_topic", std::string("diff_cont/cmd_vel"));
+  tool_hardware_stop_topic_ = declare_parameter(
+    "tool_hardware_stop_topic", std::string("controller_steadydrive/commands"));
 
-  navigation_stop_placeholder_enabled_ =
-    declare_parameter("navigation_stop_placeholder_enabled", true);
+  mission_stop_enabled_ = declare_parameter("mission_stop_enabled", true);
   motor_stop_placeholder_enabled_ = declare_parameter("motor_stop_placeholder_enabled", true);
   future_motor_stop_interfaces_ = declare_parameter<std::vector<std::string>>(
     "future_motor_stop_interfaces", std::vector<std::string>{});
+  end_mission_service_name_ = declare_parameter("end_mission_service", "end_mission");
 }
 
 void SafetyControllerNode::onStopMessage(
@@ -134,7 +145,8 @@ void SafetyControllerNode::latchStop(
   active_stop_event_ = normalized_event;
   latched_stop_active_ = true;
   if (!same_as_active) {
-    navigation_placeholder_logged_ = false;
+    mission_stop_requested_ = false;
+    mission_stop_placeholder_logged_ = false;
     motor_stop_placeholder_logged_ = false;
 
     RCLCPP_ERROR(
@@ -145,7 +157,8 @@ void SafetyControllerNode::latchStop(
   }
 
   publishZeroCommands();
-  requestNavigationStopPlaceholder();
+  publishDirectHardwareStopCommands();
+  requestMissionStop();
   requestMotorStopPlaceholder();
   publishStatus();
 }
@@ -153,7 +166,8 @@ void SafetyControllerNode::latchStop(
 void SafetyControllerNode::clearLatchedStop()
 {
   latched_stop_active_ = false;
-  navigation_placeholder_logged_ = false;
+  mission_stop_requested_ = false;
+  mission_stop_placeholder_logged_ = false;
   motor_stop_placeholder_logged_ = false;
   active_stop_event_ = amr_sweeper_safety_msgs::msg::SafetyStop();
   publishStatus();
@@ -163,7 +177,8 @@ void SafetyControllerNode::onPublishTimer()
 {
   if (enabled_ && latched_stop_active_) {
     publishZeroCommands();
-    requestNavigationStopPlaceholder();
+    publishDirectHardwareStopCommands();
+    requestMissionStop();
     requestMotorStopPlaceholder();
   }
 
@@ -178,6 +193,21 @@ void SafetyControllerNode::publishZeroCommands()
   if (publish_zero_tool_command_) {
     tool_stop_publisher_->publish(zero_twist);
   }
+}
+
+void SafetyControllerNode::publishDirectHardwareStopCommands()
+{
+  if (!publish_direct_hardware_stop_) {
+    return;
+  }
+
+  geometry_msgs::msg::TwistStamped zero_wheel_command;
+  zero_wheel_command.header.stamp = now();
+  wheel_hardware_stop_publisher_->publish(zero_wheel_command);
+
+  std_msgs::msg::Float64MultiArray zero_tool_command;
+  zero_tool_command.data = {0.0, 0.0};
+  tool_hardware_stop_publisher_->publish(zero_tool_command);
 }
 
 void SafetyControllerNode::publishStatus()
@@ -203,17 +233,40 @@ void SafetyControllerNode::publishStatus()
   diagnostics_publisher_->publish(array);
 }
 
-void SafetyControllerNode::requestNavigationStopPlaceholder()
+void SafetyControllerNode::requestMissionStop()
 {
-  if (!navigation_stop_placeholder_enabled_ || navigation_placeholder_logged_) {
+  if (!mission_stop_enabled_ || mission_stop_requested_) {
     return;
   }
 
+  if (!end_mission_client_->service_is_ready()) {
+    if (!mission_stop_placeholder_logged_) {
+      RCLCPP_WARN(
+        get_logger(),
+        "Mission stop requested by safety controller, but end_mission service '%s' is not ready. "
+        "TODO: keep this wired to mission stop and optionally add direct Nav2 goal cancellation.",
+        end_mission_service_name_.c_str());
+      mission_stop_placeholder_logged_ = true;
+    }
+    return;
+  }
+
+  auto request = std::make_shared<amr_sweeper_mission_executor::srv::EndMission::Request>();
+  request->mission_id = "";
+  request->reason = "latched safety stop";
+  request->outcome = "ABORTED";
+  request->requester = "safety_controller";
+  request->priority = 255;
+  request->force = true;
+  request->request_idling = true;
+
+  mission_stop_requested_ = true;
+  mission_stop_placeholder_logged_ = false;
+  end_mission_client_->async_send_request(request);
   RCLCPP_WARN(
     get_logger(),
-    "Navigation stop placeholder active. TODO: cancel active Nav2 goals such as "
-    "navigate_to_pose, navigate_through_poses, or follow_waypoints when this interface is wired.");
-  navigation_placeholder_logged_ = true;
+    "Safety controller requested mission stop via '%s'. TODO: optionally add direct Nav2 goal cancellation too.",
+    end_mission_service_name_.c_str());
 }
 
 void SafetyControllerNode::requestMotorStopPlaceholder()
