@@ -50,11 +50,14 @@ private:
     const rclcpp::Time & now) const;
   [[nodiscard]] std::pair<std::string, geometry_msgs::msg::Twist> selectToolCommand(
     const rclcpp::Time & now) const;
+  [[nodiscard]] bool hasActiveWheelSource(const rclcpp::Time & now) const;
+  [[nodiscard]] bool hasActiveToolSource(const rclcpp::Time & now) const;
 
   double publish_rate_hz_{20.0};
   std::string wheel_output_topic_{"cmd_vel_sweep_wheels"};
   std::string tool_output_topic_{"cmd_vel_sweep_tools"};
   std::string status_topic_{"sweeping_controller/status"};
+  bool publish_idle_commands_{false};
 
   CommandSourceState wheel_safety_source_;
   CommandSourceState wheel_joystick_source_;

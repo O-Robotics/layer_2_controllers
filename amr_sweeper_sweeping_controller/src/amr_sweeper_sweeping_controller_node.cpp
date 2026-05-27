@@ -49,6 +49,7 @@ void SweepingControllerNode::loadParameters()
   wheel_output_topic_ = declare_parameter("wheel_output_topic", std::string{"cmd_vel_sweep_wheels"});
   tool_output_topic_ = declare_parameter("tool_output_topic", std::string{"cmd_vel_sweep_tools"});
   status_topic_ = declare_parameter("status_topic", std::string{"sweeping_controller/status"});
+  publish_idle_commands_ = declare_parameter("publish_idle_commands", false);
 
   wheel_safety_source_.config.enabled = declare_parameter("wheel_sources.safety_stop.enabled", true);
   wheel_safety_source_.config.topic = declare_parameter(
@@ -159,8 +160,12 @@ void SweepingControllerNode::publishSelectedCommands()
   const auto [wheel_source, wheel_command] = selectWheelCommand(now);
   const auto [tool_source, tool_command] = selectToolCommand(now);
 
-  wheel_command_publisher_->publish(wheel_command);
-  tool_command_publisher_->publish(tool_command);
+  if (publish_idle_commands_ || hasActiveWheelSource(now)) {
+    wheel_command_publisher_->publish(wheel_command);
+  }
+  if (publish_idle_commands_ || hasActiveToolSource(now)) {
+    tool_command_publisher_->publish(tool_command);
+  }
   publishStatus(wheel_source, tool_source);
 }
 
@@ -279,6 +284,13 @@ std::pair<std::string, geometry_msgs::msg::Twist> SweepingControllerNode::select
   return {selected_name, selected->latest_command};
 }
 
+bool SweepingControllerNode::hasActiveWheelSource(const rclcpp::Time & now) const
+{
+  return isSourceActive(wheel_safety_source_, now) ||
+         isSourceActive(wheel_joystick_source_, now) ||
+         isSourceActive(wheel_navigation_source_, now);
+}
+
 std::pair<std::string, geometry_msgs::msg::Twist> SweepingControllerNode::selectToolCommand(
   const rclcpp::Time & now) const
 {
@@ -304,6 +316,13 @@ std::pair<std::string, geometry_msgs::msg::Twist> SweepingControllerNode::select
     return {selected_name, zeroTwist()};
   }
   return {selected_name, selected->latest_command};
+}
+
+bool SweepingControllerNode::hasActiveToolSource(const rclcpp::Time & now) const
+{
+  return isSourceActive(tool_safety_source_, now) ||
+         isSourceActive(tool_joystick_source_, now) ||
+         isSourceActive(tool_navigation_source_, now);
 }
 
 }  // namespace amr_sweeper_sweeping_controller
