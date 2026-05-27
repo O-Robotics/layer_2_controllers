@@ -19,3 +19,7 @@
     end_mission_service:                 end_mission       # Mission-executor service used to abort the active mission and request IDLING.
     motor_stop_placeholder_enabled:      true              # Log where direct hardware stop commands should be wired next.
     future_motor_stop_interfaces:        []                # Reserve direct motor-stop service or topic names here for later use.
+    clear_safety_stop_services:                            # Hardware recovery services called before the latch is cleared.
+      - /odrive_ros2_control/clear_safety_stop            # Clears ODrive protection latches and its drive-level e-stop/errors.
+      - /steadydrive_ros2_control/clear_safety_stop       # Clears Steadydrive protection latches and re-enables tool motors.
+    web_status_topic:                   safety_controller/web_status # Machine-readable safety summary for the operator web UI.

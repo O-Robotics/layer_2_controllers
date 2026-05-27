@@ -13,6 +13,7 @@
 #include "rclcpp/rclcpp.hpp"
 #include "std_msgs/msg/bool.hpp"
 #include "std_msgs/msg/float64_multi_array.hpp"
+#include "std_msgs/msg/string.hpp"
 #include "std_srvs/srv/set_bool.hpp"
 #include "std_srvs/srv/trigger.hpp"
 
@@ -34,8 +35,11 @@ private:
   void publishZeroCommands();
   void publishDirectHardwareStopCommands();
   void publishStatus();
+  void publishWebStatus();
   void requestMissionStop();
   void requestMotorStopPlaceholder();
+  bool clearHardwareSafetyStops(std::string & failure_message);
+  std::string buildWebStatusJson() const;
 
   void resetLatchedStopService(
     const std::shared_ptr<std_srvs::srv::Trigger::Request> request,
@@ -62,18 +66,26 @@ private:
   bool motor_stop_placeholder_enabled_{true};
   std::vector<std::string> future_motor_stop_interfaces_;
   std::string end_mission_service_name_{"end_mission"};
+  std::vector<std::string> clear_safety_stop_service_names_{
+    "/odrive_ros2_control/clear_safety_stop",
+    "/steadydrive_ros2_control/clear_safety_stop"};
+  std::string web_status_topic_{"safety_controller/web_status"};
 
   amr_sweeper_safety_msgs::msg::SafetyStop active_stop_event_;
+  std::vector<amr_sweeper_safety_msgs::msg::SafetyStop> latched_stop_events_;
 
   rclcpp::Client<amr_sweeper_mission_executor::srv::EndMission>::SharedPtr end_mission_client_;
+  std::vector<rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr> clear_safety_stop_clients_;
   rclcpp::Subscription<amr_sweeper_safety_msgs::msg::SafetyStop>::SharedPtr stop_subscription_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr wheel_stop_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr tool_stop_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::TwistStamped>::SharedPtr wheel_hardware_stop_publisher_;
   rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr tool_hardware_stop_publisher_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_publisher_;
+  rclcpp::Publisher<std_msgs::msg::String>::SharedPtr web_status_publisher_;
 
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reset_latched_stop_service_;
+  rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr clear_safety_stop_service_;
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr enable_controller_service_;
   rclcpp::TimerBase::SharedPtr publish_timer_;
 };

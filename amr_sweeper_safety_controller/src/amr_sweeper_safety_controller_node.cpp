@@ -1,6 +1,9 @@
 #include "amr_sweeper_safety_controller_node.hpp"
 
+#include <algorithm>
 #include <chrono>
+#include <future>
+#include <iomanip>
 #include <sstream>
 #include <utility>
 
@@ -43,6 +46,41 @@ builtin_interfaces::msg::Time toBuiltinTime(const rclcpp::Time & time)
   return stamp;
 }
 
+std::string jsonEscape(const std::string & value)
+{
+  std::ostringstream stream;
+  for (const char character : value) {
+    switch (character) {
+      case '\\':
+        stream << "\\\\";
+        break;
+      case '"':
+        stream << "\\\"";
+        break;
+      case '\n':
+        stream << "\\n";
+        break;
+      case '\r':
+        stream << "\\r";
+        break;
+      case '\t':
+        stream << "\\t";
+        break;
+      default:
+        if (static_cast<unsigned char>(character) < 0x20) {
+          stream << "\\u"
+                 << std::hex << std::setw(4) << std::setfill('0')
+                 << static_cast<int>(static_cast<unsigned char>(character))
+                 << std::dec << std::setfill(' ');
+        } else {
+          stream << character;
+        }
+        break;
+    }
+  }
+  return stream.str();
+}
+
 }  // namespace
 
 SafetyControllerNode::SafetyControllerNode(const rclcpp::NodeOptions & options)
@@ -65,11 +103,22 @@ SafetyControllerNode::SafetyControllerNode(const rclcpp::NodeOptions & options)
     tool_hardware_stop_topic_, rclcpp::SystemDefaultsQoS());
   end_mission_client_ =
     create_client<amr_sweeper_mission_executor::srv::EndMission>(end_mission_service_name_);
+  clear_safety_stop_clients_.clear();
+  for (const auto & service_name : clear_safety_stop_service_names_) {
+    clear_safety_stop_clients_.push_back(create_client<std_srvs::srv::Trigger>(service_name));
+  }
   diagnostics_publisher_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
     "safety_controller/status", rclcpp::SystemDefaultsQoS());
+  web_status_publisher_ = create_publisher<std_msgs::msg::String>(
+    web_status_topic_, rclcpp::SystemDefaultsQoS());
 
   reset_latched_stop_service_ = create_service<std_srvs::srv::Trigger>(
     "amr_sweeper_safety_controller/reset_latched_stop",
+    std::bind(
+      &SafetyControllerNode::resetLatchedStopService, this, std::placeholders::_1,
+      std::placeholders::_2));
+  clear_safety_stop_service_ = create_service<std_srvs::srv::Trigger>(
+    "amr_sweeper_safety_controller/clear_safety_stop",
     std::bind(
       &SafetyControllerNode::resetLatchedStopService, this, std::placeholders::_1,
       std::placeholders::_2));
@@ -111,6 +160,13 @@ void SafetyControllerNode::loadParameters()
   future_motor_stop_interfaces_ = declare_parameter<std::vector<std::string>>(
     "future_motor_stop_interfaces", std::vector<std::string>{});
   end_mission_service_name_ = declare_parameter("end_mission_service", "end_mission");
+  clear_safety_stop_service_names_ = declare_parameter<std::vector<std::string>>(
+    "clear_safety_stop_services",
+    std::vector<std::string>{
+      "/odrive_ros2_control/clear_safety_stop",
+      "/steadydrive_ros2_control/clear_safety_stop"});
+  web_status_topic_ = declare_parameter(
+    "web_status_topic", std::string("safety_controller/web_status"));
 }
 
 void SafetyControllerNode::onStopMessage(
@@ -142,6 +198,16 @@ void SafetyControllerNode::latchStop(
     active_stop_event_.sender == normalized_event.sender &&
     active_stop_event_.reason == normalized_event.reason;
 
+  const bool already_recorded = std::any_of(
+    latched_stop_events_.begin(), latched_stop_events_.end(),
+    [&normalized_event](const auto & existing_event) {
+      return existing_event.sender == normalized_event.sender &&
+             existing_event.reason == normalized_event.reason;
+    });
+  if (!already_recorded) {
+    latched_stop_events_.push_back(normalized_event);
+  }
+
   active_stop_event_ = normalized_event;
   latched_stop_active_ = true;
   if (!same_as_active) {
@@ -170,6 +236,7 @@ void SafetyControllerNode::clearLatchedStop()
   mission_stop_placeholder_logged_ = false;
   motor_stop_placeholder_logged_ = false;
   active_stop_event_ = amr_sweeper_safety_msgs::msg::SafetyStop();
+  latched_stop_events_.clear();
   publishStatus();
 }
 
@@ -231,6 +298,40 @@ void SafetyControllerNode::publishStatus()
   array.status.push_back(status);
 
   diagnostics_publisher_->publish(array);
+  publishWebStatus();
+}
+
+void SafetyControllerNode::publishWebStatus()
+{
+  std_msgs::msg::String message;
+  message.data = buildWebStatusJson();
+  web_status_publisher_->publish(message);
+}
+
+std::string SafetyControllerNode::buildWebStatusJson() const
+{
+  std::ostringstream stream;
+  stream << '{';
+  stream << "\"latched\":" << (latched_stop_active_ ? "true" : "false") << ',';
+  stream << "\"enabled\":" << (enabled_ ? "true" : "false") << ',';
+  stream << "\"active_sender\":\"" << jsonEscape(active_stop_event_.sender) << "\",";
+  stream << "\"active_reason\":\"" << jsonEscape(active_stop_event_.reason) << "\",";
+  stream << "\"causes\":[";
+  for (std::size_t index = 0; index < latched_stop_events_.size(); ++index) {
+    const auto & event = latched_stop_events_[index];
+    if (index > 0) {
+      stream << ',';
+    }
+    stream << '{'
+           << "\"sender\":\"" << jsonEscape(event.sender) << "\","
+           << "\"reason\":\"" << jsonEscape(event.reason) << "\","
+           << "\"stamp\":{"
+           << "\"sec\":" << event.stamp.sec << ','
+           << "\"nanosec\":" << event.stamp.nanosec
+           << "}}";
+  }
+  stream << "]}";
+  return stream.str();
 }
 
 void SafetyControllerNode::requestMissionStop()
@@ -293,9 +394,15 @@ void SafetyControllerNode::resetLatchedStopService(
   std::shared_ptr<std_srvs::srv::Trigger::Response> response)
 {
   (void)request;
+  std::string failure_message;
+  if (!clearHardwareSafetyStops(failure_message)) {
+    response->success = false;
+    response->message = failure_message;
+    return;
+  }
   clearLatchedStop();
   response->success = true;
-  response->message = "latched stop cleared";
+  response->message = "safety stop cleared and motors re-enabled";
 }
 
 void SafetyControllerNode::enableControllerService(
@@ -309,6 +416,50 @@ void SafetyControllerNode::enableControllerService(
 
   response->success = true;
   response->message = enabled_ ? "safety controller enabled" : "safety controller disabled";
+}
+
+bool SafetyControllerNode::clearHardwareSafetyStops(std::string & failure_message)
+{
+  std::vector<std::string> failures;
+
+  for (std::size_t index = 0; index < clear_safety_stop_clients_.size(); ++index) {
+    const auto & client = clear_safety_stop_clients_[index];
+    const auto & service_name = clear_safety_stop_service_names_[index];
+    if (!client) {
+      failures.push_back(service_name + ": client unavailable");
+      continue;
+    }
+
+    if (!client->wait_for_service(std::chrono::seconds(2))) {
+      failures.push_back(service_name + ": service not ready");
+      continue;
+    }
+
+    auto request = std::make_shared<std_srvs::srv::Trigger::Request>();
+    auto future = client->async_send_request(request);
+    if (future.wait_for(std::chrono::seconds(5)) != std::future_status::ready) {
+      failures.push_back(service_name + ": no response");
+      continue;
+    }
+
+    const auto response = future.get();
+    if (!response->success) {
+      failures.push_back(service_name + ": " + response->message);
+    }
+  }
+
+  if (!failures.empty()) {
+    std::ostringstream stream;
+    stream << "Failed to clear all hardware safety stops:";
+    for (const auto & failure : failures) {
+      stream << ' ' << '[' << failure << ']';
+    }
+    failure_message = stream.str();
+    RCLCPP_ERROR(get_logger(), "%s", failure_message.c_str());
+    return false;
+  }
+
+  return true;
 }
 
 }  // namespace amr_sweeper_safety_controller

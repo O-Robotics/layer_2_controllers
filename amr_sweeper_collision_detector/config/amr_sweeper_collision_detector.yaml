@@ -1,0 +1,59 @@
+/**:
+  ros__parameters:
+    enabled:                              true                     # Master enable for collision detection.
+    publish_rate_hz:                      20.0                     # Collision evaluation and status publish rate in Hz.
+    latch_collision:                      true                     # Keep the detector latched once an impact is observed until reset.
+    publish_stop_request:                 true                     # Publish a shared safety-stop request when a new impact is detected.
+
+    impact_state_topic:                   collision_detector/impact_detected  # Latched impact state for higher-level monitoring.
+    stop_topic_name:                      safety_msgs/stop         # Shared safety-stop topic consumed by the layer 2 safety controller.
+    stop_sender_name:                     collision_detector       # Sender name written into the safety-stop message.
+
+    # -- Source supervision ---------------------------------------------------
+    imu_timeout_warning_sec:              0.3                      # Warn if an enabled IMU has not produced a fresh sample within this time.
+    imu_timeout_error_sec:                1.0                      # Escalate IMU reachability to error when no sample arrives within this time.
+    motor_timeout_warning_sec:            0.5                      # Warn if an enabled motor-force source stops updating.
+    motor_timeout_error_sec:              1.5                      # Escalate motor-force reachability to error when no sample arrives within this time.
+
+    # -- IMU inputs -----------------------------------------------------------
+    imu_inputs.configured:
+      - main_imu                                                   # Existing JY901 IMU from layer 1.
+      - rear_imu_todo                                              # TODO: enable when the second IMU topic is added to the workspace.
+
+    imu_inputs.main_imu.enabled:                 true
+    imu_inputs.main_imu.topic:                   imu/data_raw
+    imu_inputs.main_imu.acceleration_threshold_mps2: 14.0          # Tune against measured collision spikes on the robot.
+
+    imu_inputs.rear_imu_todo.enabled:            false
+    imu_inputs.rear_imu_todo.topic:              TODO/rear_imu/data_raw
+    imu_inputs.rear_imu_todo.acceleration_threshold_mps2: 14.0     # TODO: confirm the topic and tune after hardware integration.
+
+    # -- Motor-force proxy inputs --------------------------------------------
+    # These inputs subscribe to sensor_msgs/JointState and use the configured
+    # joint effort as the force proxy published by the ros2_control
+    # joint_state_broadcaster. Thresholds should still be tuned on hardware.
+    motor_force_inputs.configured:
+      - left_drive_effort
+      - right_drive_effort
+      - left_brush_effort
+      - right_brush_effort
+
+    motor_force_inputs.left_drive_effort.enabled: true
+    motor_force_inputs.left_drive_effort.topic: joint_states
+    motor_force_inputs.left_drive_effort.joint_name: LeftWheel_joint
+    motor_force_inputs.left_drive_effort.effort_threshold: 5.0      # TODO: tune against real ODrive torque/current proxy levels.
+
+    motor_force_inputs.right_drive_effort.enabled: true
+    motor_force_inputs.right_drive_effort.topic: joint_states
+    motor_force_inputs.right_drive_effort.joint_name: RightWheel_joint
+    motor_force_inputs.right_drive_effort.effort_threshold: 5.0     # TODO: tune against real ODrive torque/current proxy levels.
+
+    motor_force_inputs.left_brush_effort.enabled: true
+    motor_force_inputs.left_brush_effort.topic: joint_states
+    motor_force_inputs.left_brush_effort.joint_name: LeftBrush_joint
+    motor_force_inputs.left_brush_effort.effort_threshold: 3.0      # TODO: tune against SteadyDrive current-proxy levels.
+
+    motor_force_inputs.right_brush_effort.enabled: true
+    motor_force_inputs.right_brush_effort.topic: joint_states
+    motor_force_inputs.right_brush_effort.joint_name: RightBrush_joint
+    motor_force_inputs.right_brush_effort.effort_threshold: 3.0     # TODO: tune against SteadyDrive current-proxy levels.

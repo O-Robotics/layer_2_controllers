@@ -23,6 +23,7 @@ def generate_launch_description():
     use_amr_sweeper_wheel_controller = LaunchConfiguration("use_amr_sweeper_wheel_controller")
     use_amr_sweeper_tool_controller = LaunchConfiguration("use_amr_sweeper_tool_controller")
     use_amr_sweeper_attitude_controller = LaunchConfiguration("use_amr_sweeper_attitude_controller")
+    use_amr_sweeper_collision_detector = LaunchConfiguration("use_amr_sweeper_collision_detector")
     use_amr_sweeper_safety_controller = LaunchConfiguration("use_amr_sweeper_safety_controller")
     joy_dev = LaunchConfiguration("joy_dev")
 
@@ -33,6 +34,7 @@ def generate_launch_description():
         DeclareLaunchArgument("use_amr_sweeper_wheel_controller", default_value="true"),
         DeclareLaunchArgument("use_amr_sweeper_tool_controller", default_value="true"),
         DeclareLaunchArgument("use_amr_sweeper_attitude_controller", default_value="true"),
+        DeclareLaunchArgument("use_amr_sweeper_collision_detector", default_value="true"),
         DeclareLaunchArgument("use_amr_sweeper_safety_controller", default_value="true"),
         DeclareLaunchArgument("joy_dev", default_value="/dev/input/js0"),
         IncludeLaunchDescription(
@@ -60,6 +62,14 @@ def generate_launch_description():
             PythonLaunchDescriptionSource(_launch_file("amr_sweeper_attitude_controller", "attitude_controller.launch.py")),
             launch_arguments={"namespace": namespace}.items(),
             condition=IfCondition(use_amr_sweeper_attitude_controller),
+        ),
+        IncludeLaunchDescription(
+            PythonLaunchDescriptionSource(
+                _launch_file(
+                    "amr_sweeper_collision_detector",
+                    "amr_sweeper_collision_detector.launch.py")),
+            launch_arguments={"namespace": namespace}.items(),
+            condition=IfCondition(use_amr_sweeper_collision_detector),
         ),
         IncludeLaunchDescription(
             PythonLaunchDescriptionSource(_launch_file("amr_sweeper_safety_controller", "safety_controller.launch.py")),
