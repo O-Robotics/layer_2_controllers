@@ -345,7 +345,8 @@ void SafetyControllerNode::requestMissionStop()
       RCLCPP_WARN(
         get_logger(),
         "Mission stop requested by safety controller, but end_mission service '%s' is not ready. "
-        "TODO: keep this wired to mission stop and optionally add direct Nav2 goal cancellation.",
+        "Zero wheel/tool commands and direct hardware stop commands remain active while waiting for "
+        "the mission stack to recover.",
         end_mission_service_name_.c_str());
       mission_stop_placeholder_logged_ = true;
     }
@@ -366,7 +367,8 @@ void SafetyControllerNode::requestMissionStop()
   end_mission_client_->async_send_request(request);
   RCLCPP_WARN(
     get_logger(),
-    "Safety controller requested mission stop via '%s'. TODO: optionally add direct Nav2 goal cancellation too.",
+    "Safety controller requested mission stop via '%s' while continuing to publish zero wheel/tool "
+    "commands and direct hardware stop commands.",
     end_mission_service_name_.c_str());
 }
 
