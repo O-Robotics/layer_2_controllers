@@ -1,7 +1,7 @@
 /**:
   ros__parameters:
     attitude_estimation_enabled: true          # Enable roll/pitch estimation from the configured IMU topics.
-    publish_rate_hz: 10.0                      # Attitude estimation and supervision update rate in Hz.
+    publish_rate_hz: 50.0                      # Attitude estimation and supervision update rate in Hz.
     safety_stop_enabled: true                  # Allow the attitude controller to publish stop events when thresholds are exceeded.
 
     base_footprint_frame: base_footprint       # Base footprint frame used by the robot model and downstream consumers.
