@@ -88,9 +88,11 @@ SafetyControllerNode::SafetyControllerNode(const rclcpp::NodeOptions & options)
 {
   loadParameters();
 
+  const auto safety_stop_qos = rclcpp::QoS(10).reliable().transient_local();
+
   stop_subscription_ = create_subscription<amr_sweeper_safety_msgs::msg::SafetyStop>(
     stop_topic_name_,
-    rclcpp::SystemDefaultsQoS(),
+    safety_stop_qos,
     std::bind(&SafetyControllerNode::onStopMessage, this, std::placeholders::_1));
 
   wheel_stop_publisher_ = create_publisher<geometry_msgs::msg::Twist>(
