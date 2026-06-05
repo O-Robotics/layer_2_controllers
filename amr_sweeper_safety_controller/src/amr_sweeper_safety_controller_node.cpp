@@ -153,9 +153,9 @@ void SafetyControllerNode::loadParameters()
   publish_zero_tool_command_ = declare_parameter("publish_zero_tool_command", true);
   publish_direct_hardware_stop_ = declare_parameter("publish_direct_hardware_stop", true);
   wheel_hardware_stop_topic_ = declare_parameter(
-    "wheel_hardware_stop_topic", std::string("diff_cont/cmd_vel"));
+    "wheel_hardware_stop_topic", std::string("drive_controller/cmd_vel"));
   tool_hardware_stop_topic_ = declare_parameter(
-    "tool_hardware_stop_topic", std::string("controller_steadydrive/commands"));
+    "tool_hardware_stop_topic", std::string("tool_controller/commands"));
 
   mission_stop_enabled_ = declare_parameter("mission_stop_enabled", true);
   motor_stop_placeholder_enabled_ = declare_parameter("motor_stop_placeholder_enabled", true);

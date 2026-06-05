@@ -1,0 +1,10 @@
+<library path="amr_sweeper_tool_controller">
+  <class
+    name="amr_sweeper_tool_controller/ToolController"
+    type="amr_sweeper_tool_controller::ToolController"
+    base_class_type="controller_interface::ControllerInterface">
+    <description>
+      Maps layer 2 tool twist commands onto the SteadyDrive brush velocity interfaces.
+    </description>
+  </class>
+</library>

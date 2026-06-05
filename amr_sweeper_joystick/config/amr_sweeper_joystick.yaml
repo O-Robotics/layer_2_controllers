@@ -1,6 +1,6 @@
 /**/joy_node:
   ros__parameters:
-    # -- Input shaping --------------------------------------------------------
+    use_joy_node:     false # Start the physical joystick device node only when a profile explicitly opts in.
     deadzone:         0.05  # Ignore small joystick deflections near center.
     autorepeat_rate:  20.0  # Republish the last joystick command at 20 Hz while held.
 

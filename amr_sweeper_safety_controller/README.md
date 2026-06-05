@@ -6,7 +6,7 @@ ros2 launch amr_sweeper_safety_controller safety_controller.launch.py
 
 Dependencies to other AMR Sweeper packages:
 - `amr_sweeper_sweeping_controller`
-- `amr_sweeper_wheel_controller`
+- `amr_sweeper_drive_controller`
 - `amr_sweeper_tool_controller`
 
 ## Purpose
@@ -33,8 +33,8 @@ This package latches shared stop requests and forces the AMR Sweeper to a stop f
 - Subscribes to `safety_msgs/stop` as `amr_sweeper_safety_msgs/msg/SafetyStop`.
 - Publishes `cmd_vel_safety_stop` as `geometry_msgs/msg/Twist`.
 - Publishes `cmd_vel_joy_tools` as a zero `geometry_msgs/msg/Twist` while the stop is latched.
-- Publishes `diff_cont/cmd_vel` as a zero `geometry_msgs/msg/TwistStamped` while the stop is latched.
-- Publishes `controller_steadydrive/commands` as a zero `std_msgs/msg/Float64MultiArray` while the stop is latched.
+- Publishes `drive_controller/cmd_vel` as a zero `geometry_msgs/msg/TwistStamped` while the stop is latched so the absorbed drive controller sees a direct wheel-stop override.
+- Publishes `tool_controller/commands` as a zero `std_msgs/msg/Float64MultiArray` while the stop is latched.
 - Publishes `safety_controller/status` as `diagnostic_msgs/msg/DiagnosticArray`.
 - Calls `end_mission` on `amr_sweeper_mission_executor` when a new stop latches so the active mission is aborted and the FSM can return to `IDLING`.
 - Provides `amr_sweeper_safety_controller/reset_latched_stop` as `std_srvs/srv/Trigger`.

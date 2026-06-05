@@ -1,0 +1,20 @@
+/**/drive_controller:
+  ros__parameters:
+    # -- Drive ros2_control controller ----------------------------------------
+    left_wheel_names: ['LeftWheel_joint']                 # Left wheel joint exported by the ODrive hardware plugin.
+    right_wheel_names: ['RightWheel_joint']               # Right wheel joint exported by the ODrive hardware plugin.
+    input_topic: cmd_vel_sweep_wheels                     # Sweeping-controller wheel twist topic consumed by this ros2_control controller.
+    direct_command_topic: drive_controller/cmd_vel        # Direct hardware-stop injection path retained for the safety controller.
+    odom_topic: drive_controller/odom                     # Published wheel odometry topic retained for localization and visual odometry.
+    odom_frame_id: odom                                   # Odometry frame published in the wheel-odometry message.
+    base_frame_id: base_footprint                         # Child frame for the wheel-odometry message.
+    wheel_separation: 0.490                               # Physical wheel separation in meters before multiplier tuning.
+    wheel_radius: 0.13                                    # Nominal wheel radius in meters before per-side multiplier tuning.
+    left_wheel_radius_multiplier: 1.0                     # Calibration multiplier for the left wheel radius.
+    right_wheel_radius_multiplier: 1.0                    # Calibration multiplier for the right wheel radius.
+    wheel_separation_multiplier: 1.15                     # Calibration multiplier for the effective wheel separation.
+    position_feedback: false                              # Use wheel velocity feedback for odometry by default; set true to integrate wheel positions instead.
+    enable_odom_tf: false                                 # Keep TF disabled here because localization owns the odom/base transform chain.
+    publish_rate: 10.0                                    # Wheel odometry publish rate in hertz.
+    command_timeout_sec: 0.5                              # Zero wheel commands if no fresh sweep-wheel twist arrives within this window.
+    direct_command_timeout_sec: 0.5                       # Give the direct safety-stop wheel topic precedence while its zero command remains fresh.

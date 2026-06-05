@@ -18,11 +18,14 @@ This package provides joystick teleoperation inputs for both wheel motion and to
 
 ## Launch Arguments
 - `namespace`: default `amr_sweeper`
+- `use_joy_node`: default `false`
 - `joy_dev`: default `/dev/input/js0`
 
 ## Overview
-`amr_sweeper_joystick` starts the joystick device node together with two teleop_twist_joy nodes. One path publishes wheel commands, and the other publishes tool commands. It is the manual operator entrypoint into the layer 2 control chain.
+`amr_sweeper_joystick` starts two `teleop_twist_joy` nodes and can optionally start the physical `joy_node`. One path publishes wheel commands, and the other publishes tool commands. It is the manual operator entrypoint into the layer 2 control chain.
 
 ## Notes
+- The default config file is `config/amr_sweeper_joystick.yaml`.
+- `use_joy_node:=false` lets another process own `/joy` while reusing the same teleop mappings.
 - Publishes wheel teleop commands on `cmd_vel_joy_wheels`.
 - Publishes tool teleop commands on `cmd_vel_joy_tools`.

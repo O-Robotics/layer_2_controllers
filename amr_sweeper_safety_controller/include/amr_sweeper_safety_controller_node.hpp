@@ -60,8 +60,8 @@ private:
   std::string tool_stop_topic_{"cmd_vel_joy_tools"};
   bool publish_zero_tool_command_{true};
   bool publish_direct_hardware_stop_{true};
-  std::string wheel_hardware_stop_topic_{"diff_cont/cmd_vel"};
-  std::string tool_hardware_stop_topic_{"controller_steadydrive/commands"};
+  std::string wheel_hardware_stop_topic_{"drive_controller/cmd_vel"};
+  std::string tool_hardware_stop_topic_{"tool_controller/commands"};
   bool mission_stop_enabled_{true};
   bool motor_stop_placeholder_enabled_{true};
   std::vector<std::string> future_motor_stop_interfaces_;
