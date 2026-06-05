@@ -234,10 +234,10 @@ controller_interface::return_type DriveController::update(
       "Failed to write one or more drive velocity commands to hardware interfaces.");
   }
 
-  const double left_position_rad = state_interfaces_[0].get_optional().value_or(0.0);
-  const double left_velocity_rad_s = state_interfaces_[1].get_optional().value_or(0.0);
-  const double right_position_rad = state_interfaces_[2].get_optional().value_or(0.0);
-  const double right_velocity_rad_s = state_interfaces_[3].get_optional().value_or(0.0);
+  const double left_position_rad = state_interfaces_[0].get_value();
+  const double left_velocity_rad_s = state_interfaces_[1].get_value();
+  const double right_position_rad = state_interfaces_[2].get_value();
+  const double right_velocity_rad_s = state_interfaces_[3].get_value();
 
   const double dt_seconds = period.seconds();
   if (!odometry_initialized_) {
