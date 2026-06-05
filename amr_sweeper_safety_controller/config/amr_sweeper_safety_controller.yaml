@@ -30,12 +30,12 @@
       - "0x142"
     button_can_monitor_enabled:          true              # Listen for CAN frames from the physical stop-button module and latch a safety stop on press.
     button_can_interface:                can0              # SocketCAN interface used to receive button-module frames.
-    button_can_base_id:                  0x200             # Button module base CAN ID; firmware emits events on base_id and status on base_id + 1.
+    button_can_base_id:                  0x200             # Tunable button module base CAN ID; firmware emits events on base_id and status on base_id + 1.
     button_status_period_ms:             5000              # Expected button status-frame period; matches the current firmware default CFG_STATUS_MS.
-    button_heartbeat_timeout_ms:         12000             # Trigger a safety stop if the button status heartbeat disappears longer than this timeout.
+    button_heartbeat_timeout_ms:         12000             # Tunable missing-heartbeat timeout in milliseconds before a safety stop is latched.
     fsm_request_service:                 request_state     # Layer 0 supervisor service used to force the robot FSM into FAULT.
     fsm_fault_profile_id:                400               # FAULT profile requested when a safety stop latches.
-    fsm_fault_request_priority:          255               # Priority used for the FAULT request so safety wins over normal transitions.
+    fsm_fault_request_priority:          255               # Kept for compatibility/documentation; the FAULT request is sent with force=true so priority is bypassed.
     clear_safety_stop_services:                            # Hardware recovery services called before the latch is cleared.
       - /odrive_ros2_control/clear_safety_stop            # Clears ODrive protection latches and its drive-level e-stop/errors.
       - /steadydrive_ros2_control/clear_safety_stop       # Clears Steadydrive protection latches and re-enables tool motors.

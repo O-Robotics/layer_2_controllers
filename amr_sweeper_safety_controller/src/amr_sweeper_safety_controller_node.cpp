@@ -579,7 +579,7 @@ void SafetyControllerNode::requestFsmFaultState()
   request->target_lifecycle = "Active";
   request->target_profile_id = fsm_fault_profile_id_;
   request->requester = "safety_controller";
-  request->priority = fsm_fault_request_priority_;
+  request->priority = 0;
   request->force = true;
   request->reason = "latched safety stop";
   request->mission_execution_directory = "";

@@ -37,11 +37,11 @@ This package latches shared stop requests and forces the AMR Sweeper to a stop f
 - Publishes `tool_controller/commands` as a zero `std_msgs/msg/Float64MultiArray` while the stop is latched.
 - Sends ODrive CANSimple e-stop frames (`cmd_id 0x02`) directly to the configured ODrive node IDs while the stop is latched.
 - Sends Steadydrive stop (`0x81`) and motor-off (`0x80`) frames directly to the configured tool-motor CAN IDs while the stop is latched.
-- Monitors the configured button-module CAN base ID and latches a stop when it receives either the button event frame (`data[0] = 0x01` on `base_id`) or a status frame with pressed bits set (`data[1] & 0x11` on `base_id + 1`).
-- Watches the button status heartbeat on `base_id + 1` and latches a safety stop if that heartbeat disappears past the configured timeout.
+- Monitors the configured button-module CAN base ID from the YAML config and latches a stop when it receives either the button event frame (`data[0] = 0x01` on `base_id`) or a status frame with pressed bits set (`data[1] & 0x11` on `base_id + 1`).
+- Watches the button status heartbeat on `base_id + 1` and latches a safety stop if that heartbeat disappears past the configured YAML timeout.
 - Publishes `safety_controller/status` as `diagnostic_msgs/msg/DiagnosticArray`.
 - Calls `end_mission` on `amr_sweeper_mission_executor` when a new stop latches so the active mission is aborted immediately.
-- Calls the FSM supervisor `request_state` service to force the robot into `FAULT` profile `400` whenever a safety stop latches, and keeps retrying while the stop remains latched until the service is available.
+- Calls the FSM supervisor `request_state` service to force the robot into `FAULT` profile `400` whenever a safety stop latches, with `force=true` so request priority is skipped, and keeps retrying while the stop remains latched until the service is available.
 - Provides `amr_sweeper_safety_controller/reset_latched_stop` as `std_srvs/srv/Trigger`.
 - Provides `amr_sweeper_safety_controller/enable_controller` as `std_srvs/srv/SetBool`.
 
