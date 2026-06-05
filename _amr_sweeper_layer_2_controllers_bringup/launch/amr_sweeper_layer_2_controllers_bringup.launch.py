@@ -1,7 +1,7 @@
 """Launch the AMR Sweeper controller stack for manual and autonomous commands."""
 
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction, RegisterEventHandler
+from launch.actions import DeclareLaunchArgument, GroupAction, IncludeLaunchDescription, OpaqueFunction, RegisterEventHandler, SetEnvironmentVariable
 from launch.event_handlers import OnProcessExit
 from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration, PathJoinSubstitution
@@ -167,7 +167,10 @@ def _launch_setup(context, *args, **kwargs):
 
 
 def generate_launch_description():
+    console_output_format = "[{severity}] [{time}] [{name}] : {message}"
     return LaunchDescription([
+        SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"),
+        SetEnvironmentVariable("RCUTILS_CONSOLE_OUTPUT_FORMAT", console_output_format),
         DeclareLaunchArgument("namespace", default_value="amr_sweeper"),
         DeclareLaunchArgument("use_sim_time", default_value="false"),
         DeclareLaunchArgument("use_amr_sweeper_drive_controller", default_value="true"),
