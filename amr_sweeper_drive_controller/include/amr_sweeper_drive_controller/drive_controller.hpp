@@ -11,6 +11,7 @@
 #include "nav_msgs/msg/odometry.hpp"
 #include "rclcpp/publisher.hpp"
 #include "rclcpp/subscription.hpp"
+#include "rclcpp/timer.hpp"
 #include "rclcpp/time.hpp"
 #include "rclcpp_lifecycle/state.hpp"
 #include "tf2_msgs/msg/tf_message.hpp"
@@ -50,13 +51,25 @@ private:
     bool valid{false};
   };
 
+  struct OdometrySnapshot
+  {
+    rclcpp::Time stamp{0, 0, RCL_ROS_TIME};
+    double x{0.0};
+    double y{0.0};
+    double heading{0.0};
+    double linear_velocity{0.0};
+    double angular_velocity{0.0};
+    bool valid{false};
+  };
+
   void resetCommandState();
   void resetOdometryState();
   void onWheelCommand(const geometry_msgs::msg::Twist::SharedPtr message);
   void onDirectCommand(const geometry_msgs::msg::TwistStamped::SharedPtr message);
   bool isFresh(const rclcpp::Time & now, const rclcpp::Time & received_at, double timeout_sec) const;
-  void publishOdometry(const rclcpp::Time & time);
-  void publishOdometryTransform(const rclcpp::Time & time);
+  void publishLatestOdometry();
+  void publishOdometry(const OdometrySnapshot & snapshot);
+  void publishOdometryTransform(const OdometrySnapshot & snapshot);
   void integrateWheelPositions(
     double left_position_rad, double right_position_rad, double dt_seconds);
   void integrateWheelVelocities(
@@ -83,6 +96,8 @@ private:
   mutable std::mutex command_mutex_;
   TwistCommand latest_twist_command_;
   StampedCommand latest_direct_command_;
+  mutable std::mutex odometry_mutex_;
+  OdometrySnapshot latest_odometry_snapshot_;
 
   bool odometry_initialized_{false};
   double x_{0.0};
@@ -92,12 +107,12 @@ private:
   double angular_velocity_{0.0};
   double previous_left_position_rad_{0.0};
   double previous_right_position_rad_{0.0};
-  rclcpp::Time previous_publish_time_{0, 0, RCL_ROS_TIME};
 
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr command_subscription_;
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr direct_command_subscription_;
   rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr odom_publisher_;
   rclcpp::Publisher<tf2_msgs::msg::TFMessage>::SharedPtr tf_publisher_;
+  rclcpp::TimerBase::SharedPtr odom_publish_timer_;
 };
 
 }  // namespace amr_sweeper_drive_controller

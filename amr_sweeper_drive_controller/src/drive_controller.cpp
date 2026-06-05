@@ -1,6 +1,7 @@
 #include "amr_sweeper_drive_controller/drive_controller.hpp"
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <functional>
 #include <utility>
@@ -142,6 +143,10 @@ controller_interface::CallbackReturn DriveController::on_configure(
   } else {
     tf_publisher_.reset();
   }
+  odom_publish_timer_ = node->create_wall_timer(
+    std::chrono::duration<double>(1.0 / publish_rate_),
+    std::bind(&DriveController::publishLatestOdometry, this));
+  odom_publish_timer_->cancel();
 
   RCLCPP_INFO(
     node->get_logger(),
@@ -158,6 +163,9 @@ controller_interface::CallbackReturn DriveController::on_activate(
 {
   resetCommandState();
   resetOdometryState();
+  if (odom_publish_timer_) {
+    odom_publish_timer_->reset();
+  }
 
   for (auto & command_interface : command_interfaces_) {
     const bool success = command_interface.set_value(0.0);
@@ -174,6 +182,10 @@ controller_interface::CallbackReturn DriveController::on_activate(
 controller_interface::CallbackReturn DriveController::on_deactivate(
   const rclcpp_lifecycle::State &)
 {
+  if (odom_publish_timer_) {
+    odom_publish_timer_->cancel();
+  }
+
   for (auto & command_interface : command_interfaces_) {
     const bool success = command_interface.set_value(0.0);
     if (!success) {
@@ -250,12 +262,15 @@ controller_interface::return_type DriveController::update(
     integrateWheelVelocities(left_velocity_rad_s, right_velocity_rad_s, dt_seconds);
   }
 
-  if ((time - previous_publish_time_).seconds() >= (1.0 / publish_rate_)) {
-    publishOdometry(time);
-    if (enable_odom_tf_) {
-      publishOdometryTransform(time);
-    }
-    previous_publish_time_ = time;
+  {
+    std::scoped_lock lock(odometry_mutex_);
+    latest_odometry_snapshot_.stamp = time;
+    latest_odometry_snapshot_.x = x_;
+    latest_odometry_snapshot_.y = y_;
+    latest_odometry_snapshot_.heading = heading_;
+    latest_odometry_snapshot_.linear_velocity = linear_velocity_;
+    latest_odometry_snapshot_.angular_velocity = angular_velocity_;
+    latest_odometry_snapshot_.valid = true;
   }
 
   return controller_interface::return_type::OK;
@@ -282,7 +297,9 @@ void DriveController::resetOdometryState()
   angular_velocity_ = 0.0;
   previous_left_position_rad_ = 0.0;
   previous_right_position_rad_ = 0.0;
-  previous_publish_time_ = rclcpp::Time{0, 0, RCL_ROS_TIME};
+
+  std::scoped_lock lock(odometry_mutex_);
+  latest_odometry_snapshot_ = OdometrySnapshot{};
 }
 
 void DriveController::onWheelCommand(const geometry_msgs::msg::Twist::SharedPtr message)
@@ -320,35 +337,57 @@ bool DriveController::isFresh(
   return (now - received_at).seconds() <= timeout_sec;
 }
 
-void DriveController::publishOdometry(const rclcpp::Time & time)
+void DriveController::publishLatestOdometry()
+{
+  if (!odom_publisher_) {
+    return;
+  }
+
+  OdometrySnapshot snapshot;
+  {
+    std::scoped_lock lock(odometry_mutex_);
+    snapshot = latest_odometry_snapshot_;
+  }
+
+  if (!snapshot.valid) {
+    return;
+  }
+
+  publishOdometry(snapshot);
+  if (enable_odom_tf_) {
+    publishOdometryTransform(snapshot);
+  }
+}
+
+void DriveController::publishOdometry(const OdometrySnapshot & snapshot)
 {
   nav_msgs::msg::Odometry message;
-  message.header.stamp = time;
+  message.header.stamp = snapshot.stamp;
   message.header.frame_id = odom_frame_id_;
   message.child_frame_id = base_frame_id_;
-  message.pose.pose.position.x = x_;
-  message.pose.pose.position.y = y_;
-  message.pose.pose.orientation.z = yawToQuaternionZ(heading_);
-  message.pose.pose.orientation.w = yawToQuaternionW(heading_);
-  message.twist.twist.linear.x = linear_velocity_;
-  message.twist.twist.angular.z = angular_velocity_;
+  message.pose.pose.position.x = snapshot.x;
+  message.pose.pose.position.y = snapshot.y;
+  message.pose.pose.orientation.z = yawToQuaternionZ(snapshot.heading);
+  message.pose.pose.orientation.w = yawToQuaternionW(snapshot.heading);
+  message.twist.twist.linear.x = snapshot.linear_velocity;
+  message.twist.twist.angular.z = snapshot.angular_velocity;
   odom_publisher_->publish(message);
 }
 
-void DriveController::publishOdometryTransform(const rclcpp::Time & time)
+void DriveController::publishOdometryTransform(const OdometrySnapshot & snapshot)
 {
   if (!tf_publisher_) {
     return;
   }
 
   geometry_msgs::msg::TransformStamped transform;
-  transform.header.stamp = time;
+  transform.header.stamp = snapshot.stamp;
   transform.header.frame_id = odom_frame_id_;
   transform.child_frame_id = base_frame_id_;
-  transform.transform.translation.x = x_;
-  transform.transform.translation.y = y_;
-  transform.transform.rotation.z = yawToQuaternionZ(heading_);
-  transform.transform.rotation.w = yawToQuaternionW(heading_);
+  transform.transform.translation.x = snapshot.x;
+  transform.transform.translation.y = snapshot.y;
+  transform.transform.rotation.z = yawToQuaternionZ(snapshot.heading);
+  transform.transform.rotation.w = yawToQuaternionW(snapshot.heading);
 
   tf2_msgs::msg::TFMessage message;
   message.transforms.push_back(std::move(transform));
