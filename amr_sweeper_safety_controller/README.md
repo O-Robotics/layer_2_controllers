@@ -40,8 +40,8 @@ This package latches shared stop requests and forces the AMR Sweeper to a stop f
 - Monitors the configured button-module CAN base ID and latches a stop when it receives either the button event frame (`data[0] = 0x01` on `base_id`) or a status frame with pressed bits set (`data[1] & 0x11` on `base_id + 1`).
 - Watches the button status heartbeat on `base_id + 1` and latches a safety stop if that heartbeat disappears past the configured timeout.
 - Publishes `safety_controller/status` as `diagnostic_msgs/msg/DiagnosticArray`.
-- Calls `end_mission` on `amr_sweeper_mission_executor` when a new stop latches so the active mission is aborted and the FSM can return to `IDLING`.
-- Calls the FSM supervisor `request_state` service to force the robot into `FAULT` profile `400` whenever a safety stop latches.
+- Calls `end_mission` on `amr_sweeper_mission_executor` when a new stop latches so the active mission is aborted immediately.
+- Calls the FSM supervisor `request_state` service to force the robot into `FAULT` profile `400` whenever a safety stop latches, and keeps retrying while the stop remains latched until the service is available.
 - Provides `amr_sweeper_safety_controller/reset_latched_stop` as `std_srvs/srv/Trigger`.
 - Provides `amr_sweeper_safety_controller/enable_controller` as `std_srvs/srv/SetBool`.
 

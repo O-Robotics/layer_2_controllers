@@ -342,6 +342,7 @@ void SafetyControllerNode::onPublishTimer()
     publishDirectHardwareStopCommands();
     publishDirectMotorStopCommands();
     requestMissionStop();
+    requestFsmFaultState();
   }
 
   publishStatus();
@@ -767,31 +768,21 @@ bool SafetyControllerNode::parseButtonCanFrame(uint32_t can_id, const std::vecto
     return true;
   }
 
+  if (can_id == status_can_id && payload.size() >= 8) {
+    button_last_status_frame_time_ = now();
+    button_last_heartbeat_counter_ = static_cast<uint16_t>(
+      (static_cast<uint16_t>(payload[kButtonHeartbeatStatusOffsetMsb]) << 8) |
+      static_cast<uint16_t>(payload[kButtonHeartbeatStatusOffsetLsb]));
+    button_heartbeat_seen_ = true;
+  }
+
   if (can_id == status_can_id && payload.size() >= 2 && (payload[1] & kButtonPressedBitMask) != 0U) {
-    if (payload.size() >= 8) {
-      button_last_status_frame_time_ = now();
-      button_last_heartbeat_counter_ = static_cast<uint16_t>(
-        (static_cast<uint16_t>(payload[kButtonHeartbeatStatusOffsetMsb]) << 8) |
-        static_cast<uint16_t>(payload[kButtonHeartbeatStatusOffsetLsb]));
-      button_heartbeat_seen_ = true;
-    }
     amr_sweeper_safety_msgs::msg::SafetyStop stop_msg;
     stop_msg.stamp = toBuiltinTime(now());
     stop_msg.sender = "button_module_can";
     stop_msg.reason = "physical safety stop button pressed (status frame)";
     latchStop(stop_msg);
     return true;
-  }
-
-  if (can_id == status_can_id && payload.size() >= 8) {
-    const uint16_t heartbeat_counter = static_cast<uint16_t>(
-      (static_cast<uint16_t>(payload[kButtonHeartbeatStatusOffsetMsb]) << 8) |
-      static_cast<uint16_t>(payload[kButtonHeartbeatStatusOffsetLsb]));
-    if (!button_heartbeat_seen_ || heartbeat_counter != button_last_heartbeat_counter_) {
-      button_last_status_frame_time_ = now();
-      button_last_heartbeat_counter_ = heartbeat_counter;
-      button_heartbeat_seen_ = true;
-    }
   }
 
   return false;
