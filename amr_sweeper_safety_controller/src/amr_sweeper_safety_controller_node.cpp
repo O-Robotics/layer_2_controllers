@@ -32,6 +32,8 @@ constexpr uint8_t kSteadydriveMotorOffCommand = 0x80;
 constexpr uint8_t kSteadydriveMotorStopCommand = 0x81;
 constexpr uint8_t kButtonPressedEvent = 0x01;
 constexpr uint8_t kButtonPressedBitMask = 0x11;
+constexpr uint8_t kButtonHeartbeatStatusOffsetMsb = 6;
+constexpr uint8_t kButtonHeartbeatStatusOffsetLsb = 7;
 
 diagnostic_msgs::msg::KeyValue keyValue(const std::string & key, const std::string & value)
 {
@@ -140,6 +142,8 @@ SafetyControllerNode::SafetyControllerNode(const rclcpp::NodeOptions & options)
     tool_hardware_stop_topic_, rclcpp::SystemDefaultsQoS());
   end_mission_client_ =
     create_client<amr_sweeper_mission_executor::srv::EndMission>(end_mission_service_name_);
+  fsm_request_client_ =
+    create_client<amr_sweeper_fsm::srv::RequestState>(fsm_request_service_name_);
   clear_safety_stop_clients_.clear();
   for (const auto & service_name : clear_safety_stop_service_names_) {
     clear_safety_stop_clients_.push_back(create_client<std_srvs::srv::Trigger>(service_name));
@@ -230,6 +234,11 @@ void SafetyControllerNode::loadParameters()
   button_can_interface_ = declare_parameter("button_can_interface", std::string("can0"));
   button_can_base_id_ = static_cast<uint32_t>(declare_parameter("button_can_base_id", 0x200));
   button_can_base_id_ &= 0x7FFU;
+  button_status_period_ms_ = declare_parameter("button_status_period_ms", 5000);
+  button_heartbeat_timeout_ms_ = declare_parameter("button_heartbeat_timeout_ms", 12000);
+  fsm_request_service_name_ = declare_parameter("fsm_request_service", std::string("request_state"));
+  fsm_fault_profile_id_ = static_cast<uint16_t>(declare_parameter("fsm_fault_profile_id", 400));
+  fsm_fault_request_priority_ = static_cast<uint8_t>(declare_parameter("fsm_fault_request_priority", 255));
 
   end_mission_service_name_ = declare_parameter("end_mission_service", "end_mission");
   clear_safety_stop_service_names_ = declare_parameter<std::vector<std::string>>(
@@ -288,6 +297,7 @@ void SafetyControllerNode::latchStop(
   latched_stop_active_ = true;
   if (!same_as_active) {
     mission_stop_requested_ = false;
+    fsm_fault_requested_ = false;
     mission_stop_placeholder_logged_ = false;
     direct_motor_stop_failure_logged_ = false;
 
@@ -302,6 +312,7 @@ void SafetyControllerNode::latchStop(
   publishDirectHardwareStopCommands();
   publishDirectMotorStopCommands();
   requestMissionStop();
+  requestFsmFaultState();
   publishStatus();
 }
 
@@ -309,6 +320,7 @@ void SafetyControllerNode::clearLatchedStop()
 {
   latched_stop_active_ = false;
   mission_stop_requested_ = false;
+  fsm_fault_requested_ = false;
   mission_stop_placeholder_logged_ = false;
   direct_motor_stop_failure_logged_ = false;
   direct_motor_stop_healthy_ = true;
@@ -322,6 +334,7 @@ void SafetyControllerNode::onPublishTimer()
 {
   if (enabled_) {
     pollButtonCanFrames();
+    checkButtonHeartbeatWatchdog();
   }
 
   if (enabled_ && latched_stop_active_) {
@@ -409,6 +422,33 @@ void SafetyControllerNode::pollButtonCanFrames()
 
     std::vector<uint8_t> payload(frame.data, frame.data + frame.can_dlc);
     (void)parseButtonCanFrame(frame.can_id & CAN_SFF_MASK, payload);
+  }
+}
+
+void SafetyControllerNode::checkButtonHeartbeatWatchdog()
+{
+  if (!button_can_monitor_enabled_ || latched_stop_active_ || !button_heartbeat_seen_) {
+    return;
+  }
+
+  const auto elapsed = now() - button_last_status_frame_time_;
+  if (elapsed.nanoseconds() < 0) {
+    return;
+  }
+
+  if (elapsed > rclcpp::Duration::from_seconds(
+      static_cast<double>(button_heartbeat_timeout_ms_) / 1000.0))
+  {
+    amr_sweeper_safety_msgs::msg::SafetyStop stop_msg;
+    stop_msg.stamp = toBuiltinTime(now());
+    stop_msg.sender = "button_module_watchdog";
+    std::ostringstream reason;
+    reason
+      << "button module heartbeat missing on CAN status ID "
+      << formatCanIdHex((button_can_base_id_ + 1U) & 0x7FFU)
+      << " for more than " << button_heartbeat_timeout_ms_ << " ms";
+    stop_msg.reason = reason.str();
+    latchStop(stop_msg);
   }
 }
 
@@ -514,6 +554,42 @@ void SafetyControllerNode::requestMissionStop()
     "Safety controller requested mission stop via '%s' while continuing to publish zero wheel/tool "
     "commands, direct hardware stop commands, and direct CAN motor stop commands.",
     end_mission_service_name_.c_str());
+}
+
+void SafetyControllerNode::requestFsmFaultState()
+{
+  if (fsm_fault_requested_) {
+    return;
+  }
+  if (!fsm_request_client_) {
+    RCLCPP_ERROR(get_logger(), "FSM FAULT requested by safety controller, but request_state client is unavailable");
+    return;
+  }
+  if (!fsm_request_client_->service_is_ready()) {
+    RCLCPP_WARN(
+      get_logger(),
+      "FSM FAULT requested by safety controller, but service '%s' is not ready",
+      fsm_request_service_name_.c_str());
+    return;
+  }
+
+  auto request = std::make_shared<amr_sweeper_fsm::srv::RequestState::Request>();
+  request->target_state = "FAULT";
+  request->target_lifecycle = "Active";
+  request->target_profile_id = fsm_fault_profile_id_;
+  request->requester = "safety_controller";
+  request->priority = fsm_fault_request_priority_;
+  request->force = true;
+  request->reason = "latched safety stop";
+  request->mission_execution_directory = "";
+
+  fsm_fault_requested_ = true;
+  fsm_request_client_->async_send_request(request);
+  RCLCPP_ERROR(
+    get_logger(),
+    "Safety controller requested FSM FAULT via '%s' using profile %u",
+    fsm_request_service_name_.c_str(),
+    static_cast<unsigned int>(fsm_fault_profile_id_));
 }
 
 bool SafetyControllerNode::ensureCanInterface(
@@ -692,12 +768,30 @@ bool SafetyControllerNode::parseButtonCanFrame(uint32_t can_id, const std::vecto
   }
 
   if (can_id == status_can_id && payload.size() >= 2 && (payload[1] & kButtonPressedBitMask) != 0U) {
+    if (payload.size() >= 8) {
+      button_last_status_frame_time_ = now();
+      button_last_heartbeat_counter_ = static_cast<uint16_t>(
+        (static_cast<uint16_t>(payload[kButtonHeartbeatStatusOffsetMsb]) << 8) |
+        static_cast<uint16_t>(payload[kButtonHeartbeatStatusOffsetLsb]));
+      button_heartbeat_seen_ = true;
+    }
     amr_sweeper_safety_msgs::msg::SafetyStop stop_msg;
     stop_msg.stamp = toBuiltinTime(now());
     stop_msg.sender = "button_module_can";
     stop_msg.reason = "physical safety stop button pressed (status frame)";
     latchStop(stop_msg);
     return true;
+  }
+
+  if (can_id == status_can_id && payload.size() >= 8) {
+    const uint16_t heartbeat_counter = static_cast<uint16_t>(
+      (static_cast<uint16_t>(payload[kButtonHeartbeatStatusOffsetMsb]) << 8) |
+      static_cast<uint16_t>(payload[kButtonHeartbeatStatusOffsetLsb]));
+    if (!button_heartbeat_seen_ || heartbeat_counter != button_last_heartbeat_counter_) {
+      button_last_status_frame_time_ = now();
+      button_last_heartbeat_counter_ = heartbeat_counter;
+      button_heartbeat_seen_ = true;
+    }
   }
 
   return false;

@@ -38,8 +38,10 @@ This package latches shared stop requests and forces the AMR Sweeper to a stop f
 - Sends ODrive CANSimple e-stop frames (`cmd_id 0x02`) directly to the configured ODrive node IDs while the stop is latched.
 - Sends Steadydrive stop (`0x81`) and motor-off (`0x80`) frames directly to the configured tool-motor CAN IDs while the stop is latched.
 - Monitors the configured button-module CAN base ID and latches a stop when it receives either the button event frame (`data[0] = 0x01` on `base_id`) or a status frame with pressed bits set (`data[1] & 0x11` on `base_id + 1`).
+- Watches the button status heartbeat on `base_id + 1` and latches a safety stop if that heartbeat disappears past the configured timeout.
 - Publishes `safety_controller/status` as `diagnostic_msgs/msg/DiagnosticArray`.
 - Calls `end_mission` on `amr_sweeper_mission_executor` when a new stop latches so the active mission is aborted and the FSM can return to `IDLING`.
+- Calls the FSM supervisor `request_state` service to force the robot into `FAULT` profile `400` whenever a safety stop latches.
 - Provides `amr_sweeper_safety_controller/reset_latched_stop` as `std_srvs/srv/Trigger`.
 - Provides `amr_sweeper_safety_controller/enable_controller` as `std_srvs/srv/SetBool`.
 
@@ -49,4 +51,5 @@ This package latches shared stop requests and forces the AMR Sweeper to a stop f
 - `amr_sweeper_sweeping_controller` should assign the `cmd_vel_safety_stop` input the highest priority in layer 2.
 - Recovery still happens through the existing Layer 1 `clear_safety_stop` services so the ODrive e-stop/error latch is cleared and the Steadydrive motors are re-enabled with their native bringup path.
 - The current default `button_can_base_id` is `0x200`, which matches the firmware fallback when no stored `CFG_CAN_ID` is present; if your flashed button module uses another base ID, update the Layer 2 parameter to match it.
+- The current button firmware documents `CFG_STATUS_MS` defaulting to `5000 ms`, so the default watchdog timeout here is `12000 ms` to allow missed frames without masking a real module disappearance.
 - Direct Nav2 goal cancellation is still an open follow-up integration.

@@ -6,6 +6,7 @@ if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 endif()
 
 find_package(ament_cmake REQUIRED)
+find_package(amr_sweeper_fsm REQUIRED)
 find_package(amr_sweeper_mission_executor REQUIRED)
 find_package(amr_sweeper_safety_msgs REQUIRED)
 find_package(diagnostic_msgs REQUIRED)
@@ -24,6 +25,7 @@ target_include_directories(amr_sweeper_safety_controller_node PUBLIC
 )
 target_compile_features(amr_sweeper_safety_controller_node PUBLIC cxx_std_17)
 ament_target_dependencies(amr_sweeper_safety_controller_node
+  amr_sweeper_fsm
   amr_sweeper_mission_executor
   amr_sweeper_safety_msgs
   diagnostic_msgs
@@ -55,6 +57,7 @@ endif()
 
 ament_export_include_directories(include)
 ament_export_dependencies(
+  amr_sweeper_fsm
   amr_sweeper_mission_executor
   amr_sweeper_safety_msgs
   diagnostic_msgs
