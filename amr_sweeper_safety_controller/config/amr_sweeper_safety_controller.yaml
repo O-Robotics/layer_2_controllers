@@ -17,8 +17,20 @@
     # -- Mission and hardware stop integrations -------------------------------
     mission_stop_enabled:                true              # Call layer 0 end_mission when a new safety stop latches.
     end_mission_service:                 end_mission       # Mission-executor service used to abort the active mission and request IDLING.
-    motor_stop_placeholder_enabled:      true              # Log where direct hardware stop commands should be wired next.
-    future_motor_stop_interfaces:        []                # Reserve direct motor-stop service or topic names here for later use.
+    direct_can_motor_stop_enabled:       true              # Send direct CAN stop/e-stop frames to the motor drives while the stop is latched.
+    odrive_direct_can_stop_enabled:      true              # Send ODrive CANSimple e-stop frames to the wheel drives.
+    odrive_can_interface:                can0              # SocketCAN interface used to reach the ODrive wheel nodes.
+    odrive_node_ids:                                        # ODrive CANSimple node IDs for the wheel motors.
+      - 0
+      - 2
+    steadydrive_direct_can_stop_enabled: true              # Send direct stop/off frames to the Steadydrive tool motors.
+    steadydrive_can_interface:           can0              # SocketCAN interface used to reach the Steadydrive tool motors.
+    steadydrive_motor_can_ids:                             # CAN IDs for the Steadydrive tool motors.
+      - "0x141"
+      - "0x142"
+    button_can_monitor_enabled:          true              # Listen for CAN frames from the physical stop-button module and latch a safety stop on press.
+    button_can_interface:                can0              # SocketCAN interface used to receive button-module frames.
+    button_can_base_id:                  0x200             # Button module base CAN ID; firmware emits events on base_id and status on base_id + 1.
     clear_safety_stop_services:                            # Hardware recovery services called before the latch is cleared.
       - /odrive_ros2_control/clear_safety_stop            # Clears ODrive protection latches and its drive-level e-stop/errors.
       - /steadydrive_ros2_control/clear_safety_stop       # Clears Steadydrive protection latches and re-enables tool motors.

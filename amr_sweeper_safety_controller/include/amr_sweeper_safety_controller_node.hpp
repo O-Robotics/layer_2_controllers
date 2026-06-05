@@ -1,6 +1,7 @@
 #ifndef AMR_SWEEPER_SAFETY_CONTROLLER__AMR_SWEEPER_SAFETY_CONTROLLER_NODE_HPP_
 #define AMR_SWEEPER_SAFETY_CONTROLLER__AMR_SWEEPER_SAFETY_CONTROLLER_NODE_HPP_
 
+#include <cstdint>
 #include <memory>
 #include <string>
 #include <vector>
@@ -24,8 +25,15 @@ class SafetyControllerNode : public rclcpp::Node
 {
 public:
   explicit SafetyControllerNode(const rclcpp::NodeOptions & options = rclcpp::NodeOptions{});
+  ~SafetyControllerNode() override;
 
 private:
+  struct CanInterfaceState
+  {
+    std::string interface_name;
+    int socket_fd{-1};
+  };
+
   void loadParameters();
   void onStopMessage(const amr_sweeper_safety_msgs::msg::SafetyStop::SharedPtr msg);
   void onPublishTimer();
@@ -34,10 +42,22 @@ private:
   void clearLatchedStop();
   void publishZeroCommands();
   void publishDirectHardwareStopCommands();
+  void publishDirectMotorStopCommands();
+  void pollButtonCanFrames();
   void publishStatus();
   void publishWebStatus();
   void requestMissionStop();
-  void requestMotorStopPlaceholder();
+  bool ensureCanInterface(CanInterfaceState & can_interface, const std::string & description);
+  void closeCanInterface(CanInterfaceState & can_interface);
+  bool sendCanFrame(
+    CanInterfaceState & can_interface,
+    uint32_t can_id,
+    const std::vector<uint8_t> & payload,
+    const std::string & description);
+  bool sendOdriveEstopCommands();
+  bool sendSteadydriveStopCommands();
+  bool sendDirectMotorStopCommands(std::string & failure_message);
+  bool parseButtonCanFrame(uint32_t can_id, const std::vector<uint8_t> & payload);
   bool clearHardwareSafetyStops(std::string & failure_message);
   std::string buildWebStatusJson() const;
 
@@ -52,7 +72,8 @@ private:
   bool latched_stop_active_{false};
   bool mission_stop_requested_{false};
   bool mission_stop_placeholder_logged_{false};
-  bool motor_stop_placeholder_logged_{false};
+  bool direct_motor_stop_failure_logged_{false};
+  bool direct_motor_stop_healthy_{true};
 
   double publish_rate_hz_{20.0};
   std::string stop_topic_name_{"safety_msgs/stop"};
@@ -63,16 +84,28 @@ private:
   std::string wheel_hardware_stop_topic_{"drive_controller/cmd_vel"};
   std::string tool_hardware_stop_topic_{"tool_controller/commands"};
   bool mission_stop_enabled_{true};
-  bool motor_stop_placeholder_enabled_{true};
-  std::vector<std::string> future_motor_stop_interfaces_;
+  bool direct_can_motor_stop_enabled_{true};
+  bool odrive_direct_can_stop_enabled_{true};
+  std::string odrive_can_interface_{"can0"};
+  std::vector<uint32_t> odrive_node_ids_{0U, 2U};
+  bool steadydrive_direct_can_stop_enabled_{true};
+  std::string steadydrive_can_interface_{"can0"};
+  std::vector<uint32_t> steadydrive_motor_can_ids_{0x141U, 0x142U};
+  bool button_can_monitor_enabled_{true};
+  std::string button_can_interface_{"can0"};
+  uint32_t button_can_base_id_{0x200U};
   std::string end_mission_service_name_{"end_mission"};
   std::vector<std::string> clear_safety_stop_service_names_{
     "/odrive_ros2_control/clear_safety_stop",
     "/steadydrive_ros2_control/clear_safety_stop"};
   std::string web_status_topic_{"safety_controller/web_status"};
+  std::string direct_motor_stop_last_failure_message_;
 
   amr_sweeper_safety_msgs::msg::SafetyStop active_stop_event_;
   std::vector<amr_sweeper_safety_msgs::msg::SafetyStop> latched_stop_events_;
+  CanInterfaceState odrive_can_state_;
+  CanInterfaceState steadydrive_can_state_;
+  CanInterfaceState button_can_state_;
 
   rclcpp::Client<amr_sweeper_mission_executor::srv::EndMission>::SharedPtr end_mission_client_;
   std::vector<rclcpp::Client<std_srvs::srv::Trigger>::SharedPtr> clear_safety_stop_clients_;
