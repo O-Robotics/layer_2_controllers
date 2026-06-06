@@ -844,7 +844,7 @@ void SafetyControllerNode::requestMissionStop()
   request->requester = "safety_controller";
   request->priority = 255;
   request->force = true;
-  request->request_idling = true;
+  request->request_idling = false;
 
   mission_stop_requested_ = true;
   mission_stop_placeholder_logged_ = false;

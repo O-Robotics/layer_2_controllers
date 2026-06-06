@@ -12,7 +12,7 @@
 
     # -- Mission and hardware stop integrations -------------------------------
     mission_stop_enabled:                true              # Call layer 0 end_mission when a new safety stop latches.
-    end_mission_service:                 end_mission       # Mission-executor service used to abort the active mission and request IDLING.
+    end_mission_service:                 end_mission       # Mission-executor service used to abort the active mission without leaving the FSM FAULT requested below.
     direct_can_motor_stop_enabled:       true              # Send direct CAN stop/e-stop frames to the motor drives while the stop is latched.
     odrive_direct_can_stop_enabled:      true              # Send ODrive CANSimple e-stop frames to the wheel drives.
     odrive_can_interface:                can0              # SocketCAN interface used to reach the ODrive wheel nodes.
