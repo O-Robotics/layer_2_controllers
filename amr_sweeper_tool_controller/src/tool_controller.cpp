@@ -31,6 +31,12 @@ controller_interface::CallbackReturn ToolController::on_init()
   node->declare_parameter("max_tool_speed_rad_s", max_tool_speed_rad_s_);
   node->declare_parameter("command_timeout_sec", command_timeout_sec_);
   node->declare_parameter("direct_command_timeout_sec", direct_command_timeout_sec_);
+  node->declare_parameter("low_pass_filter_enabled", low_pass_filter_enabled_);
+  node->declare_parameter("low_pass_time_constant_sec", low_pass_time_constant_sec_);
+  node->declare_parameter("slew_rate_limit_enabled", slew_rate_limit_enabled_);
+  node->declare_parameter(
+    "max_velocity_change_rad_s_per_sec",
+    max_velocity_change_rad_s_per_sec_);
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -65,6 +71,11 @@ controller_interface::CallbackReturn ToolController::on_configure(
   max_tool_speed_rad_s_ = node->get_parameter("max_tool_speed_rad_s").as_double();
   command_timeout_sec_ = node->get_parameter("command_timeout_sec").as_double();
   direct_command_timeout_sec_ = node->get_parameter("direct_command_timeout_sec").as_double();
+  low_pass_filter_enabled_ = node->get_parameter("low_pass_filter_enabled").as_bool();
+  low_pass_time_constant_sec_ = node->get_parameter("low_pass_time_constant_sec").as_double();
+  slew_rate_limit_enabled_ = node->get_parameter("slew_rate_limit_enabled").as_bool();
+  max_velocity_change_rad_s_per_sec_ =
+    node->get_parameter("max_velocity_change_rad_s_per_sec").as_double();
 
   if (left_joint_name_.empty() || right_joint_name_.empty()) {
     RCLCPP_ERROR(node->get_logger(), "Both left_joint and right_joint must be configured.");
@@ -78,8 +89,17 @@ controller_interface::CallbackReturn ToolController::on_configure(
     RCLCPP_ERROR(node->get_logger(), "Command timeouts must be non-negative.");
     return controller_interface::CallbackReturn::ERROR;
   }
+  if (low_pass_time_constant_sec_ < 0.0) {
+    RCLCPP_ERROR(node->get_logger(), "low_pass_time_constant_sec must be non-negative.");
+    return controller_interface::CallbackReturn::ERROR;
+  }
+  if (max_velocity_change_rad_s_per_sec_ < 0.0) {
+    RCLCPP_ERROR(node->get_logger(), "max_velocity_change_rad_s_per_sec must be non-negative.");
+    return controller_interface::CallbackReturn::ERROR;
+  }
 
   resetCommandState();
+  resetFilteredVelocityState();
 
   twist_subscription_ = node->create_subscription<geometry_msgs::msg::Twist>(
     input_topic_,
@@ -92,11 +112,15 @@ controller_interface::CallbackReturn ToolController::on_configure(
 
   RCLCPP_INFO(
     node->get_logger(),
-    "Tool controller configured: twist='%s', direct='%s', joints=['%s','%s']",
+    "Tool controller configured: twist='%s', direct='%s', joints=['%s','%s'], low_pass=%s (tau=%.3fs), slew_limit=%s (max_dv=%.3f rad/s^2)",
     input_topic_.c_str(),
     direct_command_topic_.c_str(),
     left_joint_name_.c_str(),
-    right_joint_name_.c_str());
+    right_joint_name_.c_str(),
+    low_pass_filter_enabled_ ? "on" : "off",
+    low_pass_time_constant_sec_,
+    slew_rate_limit_enabled_ ? "on" : "off",
+    max_velocity_change_rad_s_per_sec_);
 
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -105,6 +129,7 @@ controller_interface::CallbackReturn ToolController::on_activate(
   const rclcpp_lifecycle::State &)
 {
   resetCommandState();
+  resetFilteredVelocityState();
   setHardwareCommand(0.0, 0.0);
   return controller_interface::CallbackReturn::SUCCESS;
 }
@@ -118,10 +143,12 @@ controller_interface::CallbackReturn ToolController::on_deactivate(
 
 controller_interface::return_type ToolController::update(
   const rclcpp::Time & time,
-  const rclcpp::Duration &)
+  const rclcpp::Duration & period)
 {
-  double left_velocity = 0.0;
-  double right_velocity = 0.0;
+  double target_left_velocity = 0.0;
+  double target_right_velocity = 0.0;
+  bool use_direct_command = false;
+  bool use_twist_command = false;
 
   {
     std::scoped_lock lock(command_mutex_);
@@ -130,16 +157,74 @@ controller_interface::return_type ToolController::update(
       latest_direct_command_.valid &&
       isFresh(time, latest_direct_command_.received_at, direct_command_timeout_sec_))
     {
-      left_velocity = latest_direct_command_.left_velocity;
-      right_velocity = latest_direct_command_.right_velocity;
+      target_left_velocity = latest_direct_command_.left_velocity;
+      target_right_velocity = latest_direct_command_.right_velocity;
+      use_direct_command = true;
     } else if (
       latest_twist_command_.valid &&
       isFresh(time, latest_twist_command_.received_at, command_timeout_sec_))
     {
       const double linear = clampUnit(latest_twist_command_.message.linear.x);
       const double angular = clampUnit(latest_twist_command_.message.angular.z);
-      left_velocity = (linear - angular) * max_tool_speed_rad_s_;
-      right_velocity = (linear + angular) * max_tool_speed_rad_s_;
+      target_left_velocity = (linear - angular) * max_tool_speed_rad_s_;
+      target_right_velocity = (linear + angular) * max_tool_speed_rad_s_;
+      use_twist_command = true;
+    }
+  }
+
+  double left_velocity = target_left_velocity;
+  double right_velocity = target_right_velocity;
+
+  if (use_direct_command) {
+    // Direct commands remain immediate so hardware-stop and recovery paths are never delayed by smoothing.
+    filtered_left_velocity_rad_s_ = left_velocity;
+    filtered_right_velocity_rad_s_ = right_velocity;
+    filtered_velocity_initialized_ = true;
+  } else {
+    // Twist-driven tool motion is intentionally softened to make brush response less abrupt than wheel response.
+    const double dt_seconds = std::max(period.seconds(), 0.0);
+    if (!filtered_velocity_initialized_) {
+      filtered_left_velocity_rad_s_ = left_velocity;
+      filtered_right_velocity_rad_s_ = right_velocity;
+      filtered_velocity_initialized_ = true;
+    } else {
+      double next_left_velocity = left_velocity;
+      double next_right_velocity = right_velocity;
+
+      // The low-pass stage eases the output toward the target over time, smoothing short spikes and chatter.
+      if (low_pass_filter_enabled_) {
+        next_left_velocity = applyLowPassFilter(
+          filtered_left_velocity_rad_s_,
+          next_left_velocity,
+          dt_seconds);
+        next_right_velocity = applyLowPassFilter(
+          filtered_right_velocity_rad_s_,
+          next_right_velocity,
+          dt_seconds);
+      }
+
+      // The slew-rate stage puts a hard ceiling on how quickly brush speed may rise or fall between updates.
+      if (slew_rate_limit_enabled_) {
+        next_left_velocity = applySlewRateLimit(
+          filtered_left_velocity_rad_s_,
+          next_left_velocity,
+          dt_seconds);
+        next_right_velocity = applySlewRateLimit(
+          filtered_right_velocity_rad_s_,
+          next_right_velocity,
+          dt_seconds);
+      }
+
+      filtered_left_velocity_rad_s_ = next_left_velocity;
+      filtered_right_velocity_rad_s_ = next_right_velocity;
+    }
+
+    left_velocity = filtered_left_velocity_rad_s_;
+    right_velocity = filtered_right_velocity_rad_s_;
+    if (!use_twist_command) {
+      // With no fresh twist command, the filtered state naturally glides back toward zero instead of dropping instantly.
+      left_velocity = filtered_left_velocity_rad_s_;
+      right_velocity = filtered_right_velocity_rad_s_;
     }
   }
 
@@ -157,6 +242,13 @@ void ToolController::resetCommandState()
   latest_direct_command_.right_velocity = 0.0;
   latest_direct_command_.received_at = rclcpp::Time{0, 0, RCL_ROS_TIME};
   latest_direct_command_.valid = false;
+}
+
+void ToolController::resetFilteredVelocityState()
+{
+  filtered_left_velocity_rad_s_ = 0.0;
+  filtered_right_velocity_rad_s_ = 0.0;
+  filtered_velocity_initialized_ = false;
 }
 
 void ToolController::setHardwareCommand(double left_velocity, double right_velocity)
@@ -210,6 +302,33 @@ bool ToolController::isFresh(
     return true;
   }
   return (now - received_at).seconds() <= timeout_sec;
+}
+
+double ToolController::applyLowPassFilter(
+  double current_value,
+  double target_value,
+  double dt_seconds) const
+{
+  if (!low_pass_filter_enabled_ || low_pass_time_constant_sec_ <= 0.0 || dt_seconds <= 0.0) {
+    return target_value;
+  }
+
+  const double alpha = dt_seconds / (low_pass_time_constant_sec_ + dt_seconds);
+  return current_value + (alpha * (target_value - current_value));
+}
+
+double ToolController::applySlewRateLimit(
+  double current_value,
+  double target_value,
+  double dt_seconds) const
+{
+  if (!slew_rate_limit_enabled_ || max_velocity_change_rad_s_per_sec_ <= 0.0 || dt_seconds <= 0.0) {
+    return target_value;
+  }
+
+  const double max_delta = max_velocity_change_rad_s_per_sec_ * dt_seconds;
+  const double delta = std::clamp(target_value - current_value, -max_delta, max_delta);
+  return current_value + delta;
 }
 
 }  // namespace amr_sweeper_tool_controller

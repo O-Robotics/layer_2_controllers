@@ -1,10 +1,16 @@
 /**/tool_controller:
   ros__parameters:
     # -- Tool ros2_control controller -----------------------------------------
-    left_joint: LeftBrush_joint                           # Left brush velocity command interface owned by the SteadyDrive hardware plugin.
-    right_joint: RightBrush_joint                         # Right brush velocity command interface owned by the SteadyDrive hardware plugin.
-    input_topic: cmd_vel_sweep_tools                      # Sweeping-controller tool twist topic consumed by this ros2_control controller.
-    direct_command_topic: tool_controller/commands        # Direct hardware-stop injection path retained for the safety controller.
-    max_tool_speed_rad_s: 35.0                            # Maximum brush motor speed commanded when tool twist inputs saturate.
-    command_timeout_sec: 0.5                              # Zero tool commands if no fresh sweep-tool twist arrives within this window.
-    direct_command_timeout_sec: 0.5                       # Give the direct hardware-stop topic precedence while its zero command remains fresh.
+    left_joint:                          LeftBrush_joint                     # Left brush velocity command interface owned by the SteadyDrive hardware plugin.
+    right_joint:                         RightBrush_joint                    # Right brush velocity command interface owned by the SteadyDrive hardware plugin.
+    input_topic:                         cmd_vel_sweep_tools                 # Sweeping-controller tool twist topic consumed by this ros2_control controller.
+    direct_command_topic:                tool_controller/commands            # Direct hardware-stop injection path retained for the safety controller.
+    max_tool_speed_rad_s:                35.0                                # Maximum brush motor speed commanded when tool twist inputs saturate.
+    command_timeout_sec:                 0.5                                 # Zero tool commands if no fresh sweep-tool twist arrives within this window.
+    direct_command_timeout_sec:          0.5                                 # Give the direct hardware-stop topic precedence while its zero command remains fresh.
+    
+    # -- Tool speed change filters --------------------------------------------    
+    low_pass_filter_enabled:             true                                # When true, ease twist-driven brush speed toward the target using a first-order low-pass filter.
+    low_pass_time_constant_sec:          2.0                                 # Larger values make twist-driven brush speed respond more slowly; 0 disables the low-pass effect even if enabled.
+    slew_rate_limit_enabled:             true                                # When true, cap how quickly twist-driven brush speed may change between controller updates.
+    max_velocity_change_rad_s_per_sec:   10.0                                # Maximum allowed twist-driven brush speed change per second in joint rad/s.
