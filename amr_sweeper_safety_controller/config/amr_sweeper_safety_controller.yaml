@@ -8,11 +8,7 @@
 
     # -- Stop-command outputs -------------------------------------------------
     wheel_stop_topic:                  cmd_vel_safety_stop # Highest-priority wheel stop command consumed by the sweeping controller.
-    tool_stop_topic:                   cmd_vel_joy_tools   # Zero tool command republished while latched to stop the tool path too.
-    publish_zero_tool_command:         true                # Keep the tool controller forced to zero while the stop is latched.
-    publish_direct_hardware_stop:      true                # Also publish zero commands at the final wheel and tool controller inputs.
-    wheel_hardware_stop_topic:         drive_controller/cmd_vel # Final stamped wheel-command topic consumed by the drive controller path.
-    tool_hardware_stop_topic:          tool_controller/commands # Final tool-controller command topic for the tool motors.
+                                                              # The sweeping controller uses this same stop topic at highest priority for both wheels and tools.
 
     # -- Mission and hardware stop integrations -------------------------------
     mission_stop_enabled:                true              # Call layer 0 end_mission when a new safety stop latches.
@@ -36,6 +32,13 @@
     fsm_request_service:                 request_state     # Layer 0 supervisor service used to force the robot FSM into FAULT.
     fsm_fault_profile_id:                400               # FAULT profile requested when a safety stop latches.
     fsm_fault_request_priority:          255               # Kept for compatibility/documentation; the FAULT request is sent with force=true so priority is bypassed.
+    stop_feedback_timeout_ms:            1500             # Wait this long for direct motor-stop confirmation before reporting a timeout.
+    stop_feedback_stale_ms:              500              # Treat motor feedback older than this as stale during stop verification.
+    odrive_stop_velocity_threshold_rev_s: 0.05            # Consider an ODrive wheel motor stopped when |vel_estimate| falls below this raw rev/s threshold.
+    steadydrive_stop_velocity_threshold_deg_s: 5.0        # Consider a Steadydrive tool motor stopped when |speed| from 0x9C falls below this raw deg/s threshold.
+    internal_watchdog_enabled:           true             # Separate thread that forces a stop event if the node stops making progress.
+    internal_watchdog_timeout_ms:        1500             # Progress-stall timeout for the internal watchdog.
+    internal_watchdog_check_period_ms:   200              # Poll period used by the internal watchdog thread.
     clear_safety_stop_services:                            # Hardware recovery services called before the latch is cleared.
       - /odrive_ros2_control/clear_safety_stop            # Clears ODrive protection latches and its drive-level e-stop/errors.
       - /steadydrive_ros2_control/clear_safety_stop       # Clears Steadydrive protection latches and re-enables tool motors.
