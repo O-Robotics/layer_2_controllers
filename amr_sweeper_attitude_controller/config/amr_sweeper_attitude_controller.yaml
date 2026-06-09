@@ -15,8 +15,10 @@
     publish_tool_link_tf:            false                    # Reserved future feature; keep disabled for now.
      
     # -- IMU inputs ------------------------------------------------------------
-    imu_topics:                      imu/data_raw                                # Default IMU topic under the selected namespace. The JY901 driver already includes fused orientation here.
-    imu_weights:                     1.0                                         # Relative weight for the matching IMU topic above.
+    imu_topics:                      
+                                     - imu/data_raw           # Default IMU topic under the selected namespace. The JY901 driver already includes fused orientation here.
+    imu_weights:                     
+                                     - 1.0                    # Relative weight for the matching IMU topic above.
      
     imu_timeout_warning_sec:         0.3                      # Raise a warning if no fresh message arrives within this time.
     imu_timeout_error_sec:           1.0                      # Raise an error if no fresh message arrives within this time.
