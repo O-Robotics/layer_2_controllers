@@ -1,35 +1,33 @@
 /**:
   ros__parameters:
-    attitude_estimation_enabled: true          # Enable roll/pitch estimation from the configured IMU topics.
-    publish_rate_hz: 50.0                      # Attitude estimation and supervision update rate in Hz.
-    safety_stop_enabled: true                  # Allow the attitude controller to publish stop events when thresholds are exceeded.
-
-    base_footprint_frame: base_footprint       # Base footprint frame used by the robot model and downstream consumers.
-    base_link_frame: base_link                 # Base link frame used for fused attitude output.
-    tool_link_frame: tool_link                 # Reserved for future tool-link attitude publishing.
-    base_roll_joint_name: base_roll_joint      # URDF joint driven with estimated base roll.
-    base_pitch_joint_name: base_pitch_joint    # URDF joint driven with estimated base pitch.
-    stop_topic_name: safety_msgs/stop          # Shared safety-stop topic consumed by the layer 2 safety controller.
-
-    publish_base_link_joint_states: true       # Publish roll/pitch into joint_states for the robot model.
-    publish_tool_link_tf: false                # Reserved future feature; keep disabled for now.
-
+    attitude_estimation_enabled:     true                     # Enable roll/pitch estimation from the configured IMU topics.
+    publish_rate_hz:                 50.0                     # Attitude estimation and supervision update rate in Hz.
+    safety_stop_enabled:             true                     # Allow the attitude controller to publish stop events when thresholds are exceeded.
+         
+    base_footprint_frame:            base_footprint           # Base footprint frame used by the robot model and downstream consumers.
+    base_link_frame:                 base_link                # Base link frame used for fused attitude output.
+    tool_link_frame:                 tool_link                # Reserved for future tool-link attitude publishing.
+    base_roll_joint_name:            base_roll_joint          # URDF joint driven with estimated base roll.
+    base_pitch_joint_name:           base_pitch_joint         # URDF joint driven with estimated base pitch.
+    stop_topic_name:                 safety_msgs/stop         # Shared safety-stop topic consumed by the layer 2 safety controller.
+     
+    publish_base_link_joint_states:  true                     # Publish roll/pitch into joint_states for the robot model.
+    publish_tool_link_tf:            false                    # Reserved future feature; keep disabled for now.
+     
     # -- IMU inputs ------------------------------------------------------------
-    imu_topics:
-      - imu/data_raw                           # Default IMU topic under the selected namespace. The JY901 driver already includes fused orientation here.
-    imu_weights:
-      - 1.0                                    # Relative weight for the matching IMU topic above.
-
-    imu_timeout_warning_sec: 0.3               # Raise a warning if no fresh message arrives within this time.
-    imu_timeout_error_sec: 1.0                 # Raise an error if no fresh message arrives within this time.
-    imu_startup_grace_sec: 6.0                 # Allow the serial IMU driver to finish opening and configuring before timeout errors can latch a stop.
-    imu_timeout_stop_enabled: true             # Publish a safety stop when the IMU timeout reaches the error threshold.
-    
-    # -- Safety-stop supervision -----------------------------------------------
-    stop.nominal_roll_deg: 0.0                 # Expected nominal roll angle for the robot on level ground.
-    stop.nominal_pitch_deg: 5.0                # Expected nominal pitch angle for the robot on level ground.
-    stop.roll_warning_deg: 15.0                # Raise a warning when roll exceeds this magnitude from nominal.
-    stop.pitch_warning_deg: 15.0               # Raise a warning when pitch exceeds this magnitude from nominal.
-    stop.roll_stop_deg: 30.0                   # Publish a stop when roll exceeds this magnitude from nominal.
-    stop.pitch_stop_deg: 30.0                  # Publish a stop when pitch exceeds this magnitude from nominal.
-    stop.require_manual_reset: true            # Keep the stop latched until a manual reset is requested.
+    imu_topics:                      imu/data_raw                                # Default IMU topic under the selected namespace. The JY901 driver already includes fused orientation here.
+    imu_weights:                     1.0                                         # Relative weight for the matching IMU topic above.
+     
+    imu_timeout_warning_sec:         0.3                      # Raise a warning if no fresh message arrives within this time.
+    imu_timeout_error_sec:           1.0                      # Raise an error if no fresh message arrives within this time.
+    imu_startup_grace_sec:           6.0                      # Allow the serial IMU driver to finish opening and configuring before timeout errors can latch a stop.
+    imu_timeout_stop_enabled:        true                     # Publish a safety stop when the IMU timeout reaches the error threshold.
+     
+    # -- Safety-stop supervision ------------------------------------------------
+    stop.nominal_roll_deg:           0.0                      # Expected nominal roll angle for the robot on level ground.
+    stop.nominal_pitch_deg:          5.0                      # Expected nominal pitch angle for the robot on level ground.
+    stop.roll_warning_deg:           15.0                     # Raise a warning when roll exceeds this magnitude from nominal.
+    stop.pitch_warning_deg:          15.0                     # Raise a warning when pitch exceeds this magnitude from nominal.
+    stop.roll_stop_deg:              30.0                     # Publish a stop when roll exceeds this magnitude from nominal.
+    stop.pitch_stop_deg:             30.0                     # Publish a stop when pitch exceeds this magnitude from nominal.
+    stop.require_manual_reset:       true                     # Keep the stop latched until a manual reset is requested.
