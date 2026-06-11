@@ -29,6 +29,7 @@ This repository is the controller layer for the AMR Sweeper. It turns human or a
 - `use_amr_sweeper_safety_controller`: default `true`
 - `use_joy_node`: default `false`
 - `joy_dev`: default `/dev/input/js0`
+- `use_sweeping_mode`: default `cmd_vel_sweeping`
 
 ## Overview
 Layer 2 sits between the hardware interfaces in layer 1 and the higher-level decision-making in layer 3. It contains the joystick input path, the sweeping-controller arbitration path for wheel and tool motion, the attitude supervision path driven by the robot IMU, the collision detector that fuses IMU and motor-force proxies, and the shared latched safety-stop controller.

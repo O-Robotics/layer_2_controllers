@@ -58,7 +58,7 @@ private:
 
   std::string left_joint_name_{"LeftBrush_joint"};
   std::string right_joint_name_{"RightBrush_joint"};
-  std::string input_topic_{"cmd_vel_sweep_tools"};
+  std::string input_topic_{"cmd_vel_tools"};
   std::string direct_command_topic_{"tool_controller/commands"};
   double max_tool_speed_rad_s_{35.0};
   double command_timeout_sec_{0.5};

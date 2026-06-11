@@ -48,7 +48,7 @@ def generate_launch_description():
             namespace=namespace,
             output="screen",
             parameters=[joy_params],
-            remappings=[("cmd_vel", "cmd_vel_joy_wheels")],
+            remappings=[("cmd_vel", "cmd_vel_joy_drive")],
         ),
         Node(
             package="teleop_twist_joy",

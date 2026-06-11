@@ -3,7 +3,7 @@
     # -- Tool ros2_control controller -----------------------------------------
     left_joint:                          LeftBrush_joint                     # Left brush velocity command interface owned by the SteadyDrive hardware plugin.
     right_joint:                         RightBrush_joint                    # Right brush velocity command interface owned by the SteadyDrive hardware plugin.
-    input_topic:                         cmd_vel_sweep_tools                 # Sweeping-controller tool twist topic consumed by this ros2_control controller.
+    input_topic:                         cmd_vel_tools                       # Sweeping-controller tool twist topic consumed by this ros2_control controller.
     direct_command_topic:                tool_controller/commands            # Direct hardware-stop injection path retained for the safety controller.
     max_tool_speed_rad_s:                35.0                                # Maximum brush motor speed commanded when tool twist inputs saturate.
     command_timeout_sec:                 0.5                                 # Zero tool commands if no fresh sweep-tool twist arrives within this window.

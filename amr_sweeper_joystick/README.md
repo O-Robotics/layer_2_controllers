@@ -27,5 +27,5 @@ This package provides joystick teleoperation inputs for both wheel motion and to
 ## Notes
 - The default config file is `config/amr_sweeper_joystick.yaml`.
 - `use_joy_node:=false` lets another process own `/joy` while reusing the same teleop mappings.
-- Publishes wheel teleop commands on `cmd_vel_joy_wheels`.
+- Publishes wheel teleop commands on `cmd_vel_joy_drive`.
 - Publishes tool teleop commands on `cmd_vel_joy_tools`.

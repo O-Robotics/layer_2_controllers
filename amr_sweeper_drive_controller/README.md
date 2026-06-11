@@ -17,7 +17,7 @@ This package provides the custom `ros2_control` differential-drive controller th
 ## Controller Parameters
 - `left_wheel_names`: default `['LeftWheel_joint']`
 - `right_wheel_names`: default `['RightWheel_joint']`
-- `input_topic`: default `cmd_vel_sweep_wheels`
+- `input_topic`: default `cmd_vel_drive`
 - `direct_command_topic`: default `drive_controller/cmd_vel`
 - `odom_topic`: default `drive_controller/odom`
 - `wheel_separation`: default `0.490`
@@ -31,7 +31,7 @@ This package provides the custom `ros2_control` differential-drive controller th
 `amr_sweeper_drive_controller` owns the differential-drive kinematics and wheel-odometry publishing inside the shared `ros2_control` runtime. It subscribes to the selected `geometry_msgs/Twist` wheel-command stream from the sweeping controller, keeps the direct `drive_controller/cmd_vel` safety-stop override path, writes wheel velocity commands directly to the ODrive hardware interfaces, and publishes `nav_msgs/Odometry` on `drive_controller/odom`.
 
 ## Notes
-- Default input topic: `cmd_vel_sweep_wheels`.
+- Default input topic: `cmd_vel_drive`.
 - Default direct override topic: `drive_controller/cmd_vel`.
 - Default wheel odometry topic: `drive_controller/odom`.
 - Runtime controller name: `drive_controller`.

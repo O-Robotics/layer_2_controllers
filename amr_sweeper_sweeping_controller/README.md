@@ -21,17 +21,22 @@ This package arbitrates wheel and tool command sources for the AMR Sweeper and f
 
 ## Configuration Files
 - `config/amr_sweeper_sweeping_controller.yaml`
+- `config/sweeping_modes.yaml`
 
 ## Launch Arguments
 - `namespace`: default `amr_sweeper`
 - `params_file`: default `config/amr_sweeper_sweeping_controller.yaml`
+- `sweeping_modes_file`: default `config/sweeping_modes.yaml`
+- `use_sweeping_mode`: default `cmd_vel_sweeping`
 
 ## Overview
-`amr_sweeper_sweeping_controller` replaces the old wheel-only `twist_mux` path with one controller-aware arbitration node. It consumes wheel joystick commands, tool joystick commands, Nav2 wheel commands, and the independent safety-stop wheel/tool override. It publishes the selected wheel command on `cmd_vel_sweep_wheels`, publishes the selected tool command on `cmd_vel_sweep_tools`, and emits a small status string describing which source is currently active.
+`amr_sweeper_sweeping_controller` replaces the old wheel-only `twist_mux` path with one controller-aware arbitration node. It consumes wheel joystick commands, tool joystick commands, Nav2 wheel commands, and the independent safety-stop wheel/tool override. It publishes the selected wheel command on `cmd_vel_drive`, publishes the selected tool command on `cmd_vel_tools`, and emits a small status string describing which source is currently active.
 
 ## Notes
 - Wheel source priority is configured in YAML and defaults to `safety_stop > joystick > navigation`.
 - Tool source priority is configured in YAML and defaults to `safety_stop > joystick > navigation`.
 - The default joystick hold time is 1 second before wheel control is handed back to navigation.
-- Autonomous tool motion can be generated from `cmd_vel_nav` through configurable gains and offsets so a single Nav2 motion command can drive both the wheel and tool outputs.
+- Autonomous sweeping presets live in `config/sweeping_modes.yaml`.
+- `use_sweeping_mode:=cmd_vel_sweeping` keeps the gain-and-offset behavior derived from `cmd_vel_nav`.
+- `use_sweeping_mode:=constant_inward` publishes the configured constant tool `Twist` whenever a fresh autonomous `cmd_vel_nav` command is active.
 - The sweeping controller stays above `amr_sweeper_drive_controller` and `amr_sweeper_tool_controller`; it does not replace those downstream controllers.

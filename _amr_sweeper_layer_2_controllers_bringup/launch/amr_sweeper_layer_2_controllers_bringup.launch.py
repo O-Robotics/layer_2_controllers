@@ -38,6 +38,7 @@ def _launch_setup(context, *args, **kwargs):
         LaunchConfiguration("use_amr_sweeper_safety_controller").perform(context))
     use_joy_node = LaunchConfiguration("use_joy_node").perform(context)
     joy_dev = LaunchConfiguration("joy_dev").perform(context)
+    use_sweeping_mode = LaunchConfiguration("use_sweeping_mode").perform(context)
     ros2_control_config_file = PathJoinSubstitution([
         FindPackageShare("amr_sweeper_description"),
         "urdf",
@@ -77,7 +78,10 @@ def _launch_setup(context, *args, **kwargs):
         controller_dependent_actions.append(IncludeLaunchDescription(
             PythonLaunchDescriptionSource(
                 _launch_file("amr_sweeper_sweeping_controller", "sweeping_controller.launch.py")),
-            launch_arguments={"namespace": namespace}.items(),
+            launch_arguments={
+                "namespace": namespace,
+                "use_sweeping_mode": use_sweeping_mode,
+            }.items(),
         ))
 
     if use_amr_sweeper_safety_controller:
@@ -182,5 +186,6 @@ def generate_launch_description():
         DeclareLaunchArgument("use_amr_sweeper_safety_controller", default_value="true"),
         DeclareLaunchArgument("use_joy_node", default_value="false"),
         DeclareLaunchArgument("joy_dev", default_value="/dev/input/js0"),
+        DeclareLaunchArgument("use_sweeping_mode", default_value="cmd_vel_sweeping"),
         OpaqueFunction(function=_launch_setup),
     ])

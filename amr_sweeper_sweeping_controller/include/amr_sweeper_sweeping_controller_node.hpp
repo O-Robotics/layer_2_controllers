@@ -45,6 +45,7 @@ private:
   void storeCommand(CommandSourceState & state, const geometry_msgs::msg::Twist & command);
   [[nodiscard]] geometry_msgs::msg::Twist buildToolNavigationCommand(
     const geometry_msgs::msg::Twist & wheel_navigation_command) const;
+  [[nodiscard]] geometry_msgs::msg::Twist buildConstantToolNavigationCommand() const;
   [[nodiscard]] bool isSourceActive(const CommandSourceState & state, const rclcpp::Time & now) const;
   [[nodiscard]] std::pair<std::string, geometry_msgs::msg::Twist> selectWheelCommand(
     const rclcpp::Time & now) const;
@@ -54,8 +55,8 @@ private:
   [[nodiscard]] bool hasActiveToolSource(const rclcpp::Time & now) const;
 
   double publish_rate_hz_{20.0};
-  std::string wheel_output_topic_{"cmd_vel_sweep_wheels"};
-  std::string tool_output_topic_{"cmd_vel_sweep_tools"};
+  std::string wheel_output_topic_{"cmd_vel_drive"};
+  std::string tool_output_topic_{"cmd_vel_tools"};
   std::string status_topic_{"sweeping_controller/status"};
   bool publish_idle_commands_{false};
 
@@ -67,12 +68,15 @@ private:
   CommandSourceState tool_navigation_source_;
 
   bool tool_navigation_mapping_enabled_{true};
+  std::string tool_navigation_mode_{"mapping"};
   double tool_navigation_linear_x_offset_{0.0};
   double tool_navigation_linear_x_from_linear_x_gain_{0.0};
   double tool_navigation_linear_x_from_angular_z_gain_{0.0};
   double tool_navigation_angular_z_offset_{0.0};
   double tool_navigation_angular_z_from_linear_x_gain_{0.0};
   double tool_navigation_angular_z_from_angular_z_gain_{0.0};
+  double tool_navigation_constant_linear_x_{0.0};
+  double tool_navigation_constant_angular_z_{0.0};
 
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr wheel_joystick_subscription_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr wheel_navigation_subscription_;

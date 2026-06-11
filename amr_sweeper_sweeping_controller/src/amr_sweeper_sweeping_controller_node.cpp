@@ -21,6 +21,13 @@ SweepingControllerNode::SweepingControllerNode(const rclcpp::NodeOptions & optio
 : Node("sweeping_controller_node", options)
 {
   loadParameters();
+  if (tool_navigation_mode_ != "mapping" && tool_navigation_mode_ != "constant_speed") {
+    RCLCPP_WARN(
+      get_logger(),
+      "Unknown tool navigation mode '%s'; falling back to 'mapping'",
+      tool_navigation_mode_.c_str());
+    tool_navigation_mode_ = "mapping";
+  }
   createSubscriptions();
 
   wheel_command_publisher_ = create_publisher<geometry_msgs::msg::Twist>(
@@ -46,8 +53,8 @@ SweepingControllerNode::SweepingControllerNode(const rclcpp::NodeOptions & optio
 void SweepingControllerNode::loadParameters()
 {
   publish_rate_hz_ = declare_parameter("publish_rate_hz", 20.0);
-  wheel_output_topic_ = declare_parameter("wheel_output_topic", std::string{"cmd_vel_sweep_wheels"});
-  tool_output_topic_ = declare_parameter("tool_output_topic", std::string{"cmd_vel_sweep_tools"});
+  wheel_output_topic_ = declare_parameter("wheel_output_topic", std::string{"cmd_vel_drive"});
+  tool_output_topic_ = declare_parameter("tool_output_topic", std::string{"cmd_vel_tools"});
   status_topic_ = declare_parameter("status_topic", std::string{"sweeping_controller/status"});
   publish_idle_commands_ = declare_parameter("publish_idle_commands", false);
 
@@ -63,7 +70,7 @@ void SweepingControllerNode::loadParameters()
   wheel_joystick_source_.config.enabled = declare_parameter("wheel_sources.joystick.enabled", true);
   wheel_joystick_source_.config.topic = declare_parameter(
     "wheel_sources.joystick.topic",
-    std::string{"cmd_vel_joy_wheels"});
+    std::string{"cmd_vel_joy_drive"});
   wheel_joystick_source_.config.timeout_seconds = declare_parameter(
     "wheel_sources.joystick.timeout_seconds",
     1.0);
@@ -106,6 +113,9 @@ void SweepingControllerNode::loadParameters()
   tool_navigation_source_.config.priority = declare_parameter("tool_sources.navigation.priority", 5);
 
   tool_navigation_mapping_enabled_ = declare_parameter("tool_sources.navigation.mapping_enabled", true);
+  tool_navigation_mode_ = declare_parameter(
+    "tool_sources.navigation.mode",
+    std::string{"mapping"});
   tool_navigation_linear_x_offset_ = declare_parameter(
     "tool_sources.navigation.linear_x_offset",
     0.0);
@@ -124,6 +134,12 @@ void SweepingControllerNode::loadParameters()
   tool_navigation_angular_z_from_angular_z_gain_ = declare_parameter(
     "tool_sources.navigation.angular_z_from_angular_z_gain",
     1.0);
+  tool_navigation_constant_linear_x_ = declare_parameter(
+    "tool_sources.navigation.constant_linear_x",
+    0.0);
+  tool_navigation_constant_angular_z_ = declare_parameter(
+    "tool_sources.navigation.constant_angular_z",
+    0.0);
 }
 
 void SweepingControllerNode::createSubscriptions()
@@ -235,6 +251,10 @@ void SweepingControllerNode::storeCommand(
 geometry_msgs::msg::Twist SweepingControllerNode::buildToolNavigationCommand(
   const geometry_msgs::msg::Twist & wheel_navigation_command) const
 {
+  if (tool_navigation_mode_ == "constant_speed") {
+    return buildConstantToolNavigationCommand();
+  }
+
   geometry_msgs::msg::Twist tool_command;
   tool_command.linear.x =
     tool_navigation_linear_x_offset_ +
@@ -244,6 +264,14 @@ geometry_msgs::msg::Twist SweepingControllerNode::buildToolNavigationCommand(
     tool_navigation_angular_z_offset_ +
     (wheel_navigation_command.linear.x * tool_navigation_angular_z_from_linear_x_gain_) +
     (wheel_navigation_command.angular.z * tool_navigation_angular_z_from_angular_z_gain_);
+  return tool_command;
+}
+
+geometry_msgs::msg::Twist SweepingControllerNode::buildConstantToolNavigationCommand() const
+{
+  geometry_msgs::msg::Twist tool_command;
+  tool_command.linear.x = tool_navigation_constant_linear_x_;
+  tool_command.angular.z = tool_navigation_constant_angular_z_;
   return tool_command;
 }
 
