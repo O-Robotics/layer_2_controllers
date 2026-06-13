@@ -142,7 +142,7 @@ CollisionDetectorNode::CollisionDetectorNode(const rclcpp::NodeOptions & options
   impact_state_publisher_ = create_publisher<std_msgs::msg::Bool>(
     impact_state_topic_, rclcpp::SystemDefaultsQoS());
   stop_request_publisher_ = create_publisher<amr_sweeper_safety_msgs::msg::SafetyStop>(
-    stop_topic_name_, rclcpp::SystemDefaultsQoS());
+    stop_topic_name_, rclcpp::QoS(10).reliable().transient_local());
   diagnostics_publisher_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
     "collision_detector/status", rclcpp::SystemDefaultsQoS());
 
@@ -216,7 +216,7 @@ void CollisionDetectorNode::configureImuInputs()
     imu_subscriptions_.push_back(
       create_subscription<sensor_msgs::msg::Imu>(
         input.topic,
-        rclcpp::SystemDefaultsQoS(),
+        rclcpp::SensorDataQoS(),
         [this, index = imu_inputs_.size() - 1](sensor_msgs::msg::Imu::SharedPtr msg) {
           onImuMessage(std::move(msg), index);
         }));

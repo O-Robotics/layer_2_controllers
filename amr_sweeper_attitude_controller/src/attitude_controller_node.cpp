@@ -341,7 +341,7 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
   base_joint_state_publisher_ = create_publisher<sensor_msgs::msg::JointState>(
     "attitude_controller/joint_states", rclcpp::SystemDefaultsQoS());
   stop_request_publisher_ = create_publisher<amr_sweeper_safety_msgs::msg::SafetyStop>(
-    stop_topic_name_, rclcpp::SystemDefaultsQoS());
+    stop_topic_name_, rclcpp::QoS(10).reliable().transient_local());
 
   reset_fault_service_ = create_service<std_srvs::srv::Trigger>(
     "amr_sweeper_attitude_controller/reset_fault",
