@@ -77,7 +77,7 @@ private:
 
   std::vector<std::string> left_wheel_names_{"LeftWheel_joint"};
   std::vector<std::string> right_wheel_names_{"RightWheel_joint"};
-  std::string input_topic_{"cmd_vel_drive"};
+  std::string input_topic_{"sweeping_controller/cmd_vel_drive"};
   std::string direct_command_topic_{"drive_controller/cmd_vel"};
   std::string odom_topic_{"drive_controller/odom"};
   std::string odom_frame_id_{"odom"};

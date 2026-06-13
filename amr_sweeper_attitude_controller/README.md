@@ -48,9 +48,9 @@ This package estimates chassis attitude and exposes safety-stop supervision sign
 
 ## Interfaces
 - Subscribes to `imu/data_raw` in the selected robot namespace by default and uses the IMU orientation quaternion.
-- Publishes `attitude/roll_pitch` as `geometry_msgs/msg/Vector3Stamped` with `x=roll_rad`, `y=pitch_rad`, `z=0`.
-- Publishes `attitude/status` as `diagnostic_msgs/msg/DiagnosticArray`.
-- Publishes `joint_states` updates for `base_roll_joint` and `base_pitch_joint` by default so `robot_state_publisher` can resolve the `base_footprint -> base_link` attitude chain from the URDF.
+- Publishes `attitude_controller/roll_pitch` as `geometry_msgs/msg/Vector3Stamped` with `x=roll_rad`, `y=pitch_rad`, `z=0`.
+- Publishes `attitude_controller/status` as `diagnostic_msgs/msg/DiagnosticArray`.
+- Publishes `attitude_controller/joint_states` updates for `base_roll_joint` and `base_pitch_joint` by default so `robot_state_publisher` can resolve the `base_footprint -> base_link` attitude chain from the URDF.
 - Publishes `safety_msgs/stop` as `amr_sweeper_safety_msgs/msg/SafetyStop`, with debugging detail such as exceeded roll/pitch embedded in the `reason` string.
 - Provides `amr_sweeper_attitude_controller/reset_fault` as `std_srvs/srv/Trigger`.
 - Provides `amr_sweeper_attitude_controller/enable_attitude_estimation` as `std_srvs/srv/SetBool`.
@@ -58,8 +58,8 @@ This package estimates chassis attitude and exposes safety-stop supervision sign
 
 ## Notes
 - Default IMU input: `imu/data_raw` in the selected robot namespace.
-- Default outputs: `attitude/roll_pitch`, `attitude/status`, and `safety_msgs/stop` in the selected robot namespace.
-- Default base-attitude joint output: `joint_states` for `base_roll_joint` and `base_pitch_joint`.
+- Default outputs: `attitude_controller/roll_pitch`, `attitude_controller/status`, and `safety_msgs/stop` in the selected robot namespace.
+- Default base-attitude joint output: `attitude_controller/joint_states` for `base_roll_joint` and `base_pitch_joint`.
 - Default services: `amr_sweeper_attitude_controller/reset_fault`, `amr_sweeper_attitude_controller/enable_attitude_estimation`, and `amr_sweeper_attitude_controller/enable_safety_stop` in the selected robot namespace.
 - When `publish_base_link_joint_states` is true, this node drives the URDF attitude joints that connect `base_footprint` to `base_link`.
 - The controller expects the IMU `header.frame_id` to be transformable into `base_link` when a non-empty frame id is present.

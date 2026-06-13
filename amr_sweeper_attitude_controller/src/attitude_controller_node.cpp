@@ -1,4 +1,4 @@
-#include "amr_sweeper_attitude_controller_node.hpp"
+#include "attitude_controller_node.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -325,7 +325,7 @@ StopSupervisorState StopSupervisor::state() const
 }
 
 AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & options)
-: Node("amr_sweeper_attitude_controller_node", options),
+: Node("attitude_controller_node", options),
   stop_supervisor_(stop_options_),
   tf_buffer_(this->get_clock()),
   tf_listener_(tf_buffer_)
@@ -335,11 +335,11 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
   stop_supervisor_.setOptions(stop_options_);
 
   attitude_publisher_ = create_publisher<geometry_msgs::msg::Vector3Stamped>(
-    "attitude/roll_pitch", rclcpp::SystemDefaultsQoS());
+    "attitude_controller/roll_pitch", rclcpp::SystemDefaultsQoS());
   attitude_diagnostics_publisher_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
-    "attitude/status", rclcpp::SystemDefaultsQoS());
+    "attitude_controller/status", rclcpp::SystemDefaultsQoS());
   base_joint_state_publisher_ = create_publisher<sensor_msgs::msg::JointState>(
-    "joint_states", rclcpp::SystemDefaultsQoS());
+    "attitude_controller/joint_states", rclcpp::SystemDefaultsQoS());
   stop_request_publisher_ = create_publisher<amr_sweeper_safety_msgs::msg::SafetyStop>(
     stop_topic_name_, rclcpp::SystemDefaultsQoS());
 

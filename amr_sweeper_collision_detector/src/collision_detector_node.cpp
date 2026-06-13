@@ -234,7 +234,7 @@ void CollisionDetectorNode::configureMotorForceInputs()
     MotorForceInput input;
     input.name = motor_name;
     input.topic = declare_parameter(
-      "motor_force_inputs." + motor_name + ".topic", std::string("joint_states"));
+      "motor_force_inputs." + motor_name + ".topic", std::string("attitude_controller/joint_states"));
     input.joint_name = declare_parameter(
       "motor_force_inputs." + motor_name + ".joint_name", std::string(""));
     input.effort_threshold = declare_parameter(

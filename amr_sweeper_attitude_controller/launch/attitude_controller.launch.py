@@ -25,7 +25,7 @@ def generate_launch_description():
             Node(
                 package="amr_sweeper_attitude_controller",
                 executable="attitude_controller_node",
-                name="amr_sweeper_attitude_controller_node",
+                name="attitude_controller_node",
                 namespace=namespace,
                 output="screen",
                 parameters=[params_file],

@@ -1,4 +1,4 @@
-#include "amr_sweeper_safety_controller_node.hpp"
+#include "safety_controller_node.hpp"
 
 #include <algorithm>
 #include <array>
@@ -160,7 +160,7 @@ bool allZeroPayloadExceptCommand(const std::vector<uint8_t> & payload)
 }  // namespace
 
 SafetyControllerNode::SafetyControllerNode(const rclcpp::NodeOptions & options)
-: Node("safety_controller", options)
+: Node("safety_controller_node", options)
 {
   loadParameters();
 
@@ -239,7 +239,7 @@ void SafetyControllerNode::loadParameters()
   }
 
   stop_topic_name_ = declare_parameter("stop_topic_name", "safety_msgs/stop");
-  wheel_stop_topic_ = declare_parameter("wheel_stop_topic", "cmd_vel_safety_stop");
+  wheel_stop_topic_ = declare_parameter("wheel_stop_topic", "safety_controller/cmd_vel_safety_stop");
 
   mission_stop_enabled_ = declare_parameter("mission_stop_enabled", true);
   direct_can_motor_stop_enabled_ = declare_parameter("direct_can_motor_stop_enabled", true);

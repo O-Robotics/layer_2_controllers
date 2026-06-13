@@ -3,7 +3,7 @@
     # -- Drive ros2_control controller ----------------------------------------
     left_wheel_names: ['LeftWheel_joint']                 # Left wheel joint exported by the ODrive hardware plugin.
     right_wheel_names: ['RightWheel_joint']               # Right wheel joint exported by the ODrive hardware plugin.
-    input_topic: cmd_vel_drive                            # Sweeping-controller wheel twist topic consumed by this ros2_control controller.
+    input_topic: sweeping_controller/cmd_vel_drive        # Sweeping-controller wheel twist topic consumed by this ros2_control controller.
     direct_command_topic: drive_controller/cmd_vel        # Direct hardware-stop injection path retained for the safety controller.
     odom_topic: drive_controller/odom                     # Published wheel odometry topic retained for localization and visual odometry.
     odom_frame_id: odom                                   # Odometry frame published in the wheel-odometry message.

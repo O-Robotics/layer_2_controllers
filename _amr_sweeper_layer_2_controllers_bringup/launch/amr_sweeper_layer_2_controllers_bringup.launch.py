@@ -27,7 +27,7 @@ def _launch_setup(context, *args, **kwargs):
         LaunchConfiguration("use_amr_sweeper_drive_controller").perform(context))
     use_amr_sweeper_tool_controller = _as_bool(
         LaunchConfiguration("use_amr_sweeper_tool_controller").perform(context))
-    use_amr_sweeper_joystick = _as_bool(LaunchConfiguration("use_amr_sweeper_joystick").perform(context))
+    use_amr_sweeper_teleop = _as_bool(LaunchConfiguration("use_amr_sweeper_teleop").perform(context))
     use_amr_sweeper_sweeping_controller = _as_bool(
         LaunchConfiguration("use_amr_sweeper_sweeping_controller").perform(context))
     use_amr_sweeper_attitude_controller = _as_bool(
@@ -49,9 +49,9 @@ def _launch_setup(context, *args, **kwargs):
     actions = []
     controller_dependent_actions = []
 
-    if use_amr_sweeper_joystick:
+    if use_amr_sweeper_teleop:
         actions.append(IncludeLaunchDescription(
-            PythonLaunchDescriptionSource(_launch_file("amr_sweeper_joystick", "joystick.launch.py")),
+            PythonLaunchDescriptionSource(_launch_file("amr_sweeper_teleop", "teleop.launch.py")),
             launch_arguments={
                 "namespace": namespace,
                 "joy_dev": joy_dev,
@@ -179,7 +179,7 @@ def generate_launch_description():
         DeclareLaunchArgument("use_sim_time", default_value="false"),
         DeclareLaunchArgument("use_amr_sweeper_drive_controller", default_value="true"),
         DeclareLaunchArgument("use_amr_sweeper_tool_controller", default_value="true"),
-        DeclareLaunchArgument("use_amr_sweeper_joystick", default_value="true"),
+        DeclareLaunchArgument("use_amr_sweeper_teleop", default_value="true"),
         DeclareLaunchArgument("use_amr_sweeper_sweeping_controller", default_value="true"),
         DeclareLaunchArgument("use_amr_sweeper_attitude_controller", default_value="true"),
         DeclareLaunchArgument("use_amr_sweeper_collision_detector", default_value="true"),

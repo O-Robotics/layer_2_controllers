@@ -31,7 +31,7 @@ This package latches shared stop requests and forces the AMR Sweeper to a stop f
 
 ## Interfaces
 - Subscribes to `safety_msgs/stop` as `amr_sweeper_safety_msgs/msg/SafetyStop`.
-- Publishes `cmd_vel_safety_stop` as `geometry_msgs/msg/Twist`.
+- Publishes `safety_controller/cmd_vel_safety_stop` as `geometry_msgs/msg/Twist`.
 - Sends ODrive CANSimple e-stop frames (`cmd_id 0x02`) directly to the configured ODrive node IDs while the stop is latched.
 - Requests ODrive encoder-estimate feedback (`cmd_id 0x09` via RTR) and verifies each wheel motor reaches the configured stopped-speed threshold while the stop is latched.
 - Sends Steadydrive stop (`0x81`) and motor-off (`0x80`) frames directly to the configured tool-motor CAN IDs while the stop is latched.
@@ -47,9 +47,9 @@ This package latches shared stop requests and forces the AMR Sweeper to a stop f
 - Provides `amr_sweeper_safety_controller/enable_controller` as `std_srvs/srv/SetBool`.
 
 ## Notes
-- The default node name is `safety_controller`, so under the default namespace it runs as `/amr_sweeper/safety_controller`.
+- The default node name is `safety_controller_node`, so under the default namespace it runs as `/amr_sweeper/safety_controller_node`.
 - The public safety topics are kept intentionally small: `safety_msgs/stop` for stop events and `safety_controller/status` for diagnostics.
-- `amr_sweeper_sweeping_controller` should assign the `cmd_vel_safety_stop` input the highest priority in layer 2 for both wheel and tool arbitration.
+- `amr_sweeper_sweeping_controller` should assign the `safety_controller/cmd_vel_safety_stop` input the highest priority in layer 2 for both wheel and tool arbitration.
 - Recovery still happens through the existing Layer 1 `clear_safety_stop` services so the ODrive e-stop/error latch is cleared and the Steadydrive motors are re-enabled with their native bringup path.
 - The current default `button_can_base_id` is `0x200`, which matches the firmware fallback when no stored `CFG_CAN_ID` is present; if your flashed button module uses another base ID, update the Layer 2 parameter to match it.
 - The current button firmware documents `CFG_STATUS_MS` defaulting to `5000 ms`, so the default watchdog timeout here is `12000 ms` to allow missed frames without masking a real module disappearance.

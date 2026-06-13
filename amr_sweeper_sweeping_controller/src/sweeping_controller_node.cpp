@@ -1,4 +1,4 @@
-#include "amr_sweeper_sweeping_controller_node.hpp"
+#include "sweeping_controller_node.hpp"
 
 #include <functional>
 #include <sstream>
@@ -53,15 +53,17 @@ SweepingControllerNode::SweepingControllerNode(const rclcpp::NodeOptions & optio
 void SweepingControllerNode::loadParameters()
 {
   publish_rate_hz_ = declare_parameter("publish_rate_hz", 20.0);
-  wheel_output_topic_ = declare_parameter("wheel_output_topic", std::string{"cmd_vel_drive"});
-  tool_output_topic_ = declare_parameter("tool_output_topic", std::string{"cmd_vel_tools"});
+  wheel_output_topic_ = declare_parameter(
+    "wheel_output_topic", std::string{"sweeping_controller/cmd_vel_drive"});
+  tool_output_topic_ = declare_parameter(
+    "tool_output_topic", std::string{"sweeping_controller/cmd_vel_tools"});
   status_topic_ = declare_parameter("status_topic", std::string{"sweeping_controller/status"});
   publish_idle_commands_ = declare_parameter("publish_idle_commands", false);
 
   wheel_safety_source_.config.enabled = declare_parameter("wheel_sources.safety_stop.enabled", true);
   wheel_safety_source_.config.topic = declare_parameter(
     "wheel_sources.safety_stop.topic",
-    std::string{"cmd_vel_safety_stop"});
+    std::string{"safety_controller/cmd_vel_safety_stop"});
   wheel_safety_source_.config.timeout_seconds = declare_parameter(
     "wheel_sources.safety_stop.timeout_seconds",
     0.5);
@@ -70,7 +72,7 @@ void SweepingControllerNode::loadParameters()
   wheel_joystick_source_.config.enabled = declare_parameter("wheel_sources.joystick.enabled", true);
   wheel_joystick_source_.config.topic = declare_parameter(
     "wheel_sources.joystick.topic",
-    std::string{"cmd_vel_joy_drive"});
+    std::string{"teleop/cmd_vel_drive"});
   wheel_joystick_source_.config.timeout_seconds = declare_parameter(
     "wheel_sources.joystick.timeout_seconds",
     1.0);
@@ -79,7 +81,7 @@ void SweepingControllerNode::loadParameters()
   wheel_navigation_source_.config.enabled = declare_parameter("wheel_sources.navigation.enabled", true);
   wheel_navigation_source_.config.topic = declare_parameter(
     "wheel_sources.navigation.topic",
-    std::string{"cmd_vel_nav"});
+    std::string{"navigation/cmd_vel"});
   wheel_navigation_source_.config.timeout_seconds = declare_parameter(
     "wheel_sources.navigation.timeout_seconds",
     0.5);
@@ -88,7 +90,7 @@ void SweepingControllerNode::loadParameters()
   tool_safety_source_.config.enabled = declare_parameter("tool_sources.safety_stop.enabled", true);
   tool_safety_source_.config.topic = declare_parameter(
     "tool_sources.safety_stop.topic",
-    std::string{"cmd_vel_safety_stop"});
+    std::string{"safety_controller/cmd_vel_safety_stop"});
   tool_safety_source_.config.timeout_seconds = declare_parameter(
     "tool_sources.safety_stop.timeout_seconds",
     0.5);
@@ -97,7 +99,7 @@ void SweepingControllerNode::loadParameters()
   tool_joystick_source_.config.enabled = declare_parameter("tool_sources.joystick.enabled", true);
   tool_joystick_source_.config.topic = declare_parameter(
     "tool_sources.joystick.topic",
-    std::string{"cmd_vel_joy_tools"});
+    std::string{"teleop/cmd_vel_tools"});
   tool_joystick_source_.config.timeout_seconds = declare_parameter(
     "tool_sources.joystick.timeout_seconds",
     1.0);
@@ -106,7 +108,7 @@ void SweepingControllerNode::loadParameters()
   tool_navigation_source_.config.enabled = declare_parameter("tool_sources.navigation.enabled", true);
   tool_navigation_source_.config.topic = declare_parameter(
     "tool_sources.navigation.topic",
-    std::string{"cmd_vel_nav"});
+    std::string{"navigation/cmd_vel"});
   tool_navigation_source_.config.timeout_seconds = declare_parameter(
     "tool_sources.navigation.timeout_seconds",
     0.5);

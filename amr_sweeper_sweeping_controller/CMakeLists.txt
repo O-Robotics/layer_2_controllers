@@ -11,7 +11,7 @@ find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 
 add_executable(amr_sweeper_sweeping_controller_node
-  src/amr_sweeper_sweeping_controller_node.cpp
+  src/sweeping_controller_node.cpp
 )
 set_target_properties(amr_sweeper_sweeping_controller_node PROPERTIES OUTPUT_NAME sweeping_controller_node)
 target_include_directories(amr_sweeper_sweeping_controller_node PUBLIC

@@ -39,21 +39,21 @@
       - right_brush_effort
 
     motor_force_inputs.left_drive_effort.enabled: true
-    motor_force_inputs.left_drive_effort.topic: joint_states
+    motor_force_inputs.left_drive_effort.topic: attitude_controller/joint_states
     motor_force_inputs.left_drive_effort.joint_name: LeftWheel_joint
     motor_force_inputs.left_drive_effort.effort_threshold: 5.0      # TODO: tune against real ODrive torque/current proxy levels.
 
     motor_force_inputs.right_drive_effort.enabled: true
-    motor_force_inputs.right_drive_effort.topic: joint_states
+    motor_force_inputs.right_drive_effort.topic: attitude_controller/joint_states
     motor_force_inputs.right_drive_effort.joint_name: RightWheel_joint
     motor_force_inputs.right_drive_effort.effort_threshold: 5.0     # TODO: tune against real ODrive torque/current proxy levels.
 
     motor_force_inputs.left_brush_effort.enabled: true
-    motor_force_inputs.left_brush_effort.topic: joint_states
+    motor_force_inputs.left_brush_effort.topic: attitude_controller/joint_states
     motor_force_inputs.left_brush_effort.joint_name: LeftBrush_joint
     motor_force_inputs.left_brush_effort.effort_threshold: 3.0      # TODO: tune against SteadyDrive current-proxy levels.
 
     motor_force_inputs.right_brush_effort.enabled: true
-    motor_force_inputs.right_brush_effort.topic: joint_states
+    motor_force_inputs.right_brush_effort.topic: attitude_controller/joint_states
     motor_force_inputs.right_brush_effort.joint_name: RightBrush_joint
     motor_force_inputs.right_brush_effort.effort_threshold: 3.0     # TODO: tune against SteadyDrive current-proxy levels.

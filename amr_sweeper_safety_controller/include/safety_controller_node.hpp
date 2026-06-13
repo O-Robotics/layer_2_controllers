@@ -121,7 +121,7 @@ private:
 
   double publish_rate_hz_{20.0};
   std::string stop_topic_name_{"safety_msgs/stop"};
-  std::string wheel_stop_topic_{"cmd_vel_safety_stop"};
+  std::string wheel_stop_topic_{"safety_controller/cmd_vel_safety_stop"};
   bool mission_stop_enabled_{true};
   bool direct_can_motor_stop_enabled_{true};
   bool odrive_direct_can_stop_enabled_{true};

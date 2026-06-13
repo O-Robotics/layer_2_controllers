@@ -25,7 +25,7 @@ def generate_launch_description():
             Node(
                 package="amr_sweeper_collision_detector",
                 executable="collision_detector_node",
-                name="collision_detector",
+                name="collision_detector_node",
                 namespace=namespace,
                 output="screen",
                 parameters=[params_file],

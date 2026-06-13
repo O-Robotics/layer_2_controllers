@@ -7,7 +7,7 @@
     stop_topic_name:                   safety_msgs/stop    # Shared amr_sweeper_safety_msgs/SafetyStop topic any package can publish to.
 
     # -- Stop-command outputs -------------------------------------------------
-    wheel_stop_topic:                  cmd_vel_safety_stop # Highest-priority wheel stop command consumed by the sweeping controller.
+    wheel_stop_topic:                  safety_controller/cmd_vel_safety_stop # Highest-priority wheel stop command consumed by the sweeping controller.
                                                               # The sweeping controller uses this same stop topic at highest priority for both wheels and tools.
 
     # -- Mission and hardware stop integrations -------------------------------

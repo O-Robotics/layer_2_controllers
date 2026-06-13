@@ -6,7 +6,7 @@ ros2 launch amr_sweeper_layer_2_controllers_bringup amr_sweeper_layer_2_controll
 
 Dependencies to other AMR Sweeper packages:
 - `amr_sweeper_layer_2_controllers_bringup`
-- `amr_sweeper_joystick`
+- `amr_sweeper_teleop`
 - `amr_sweeper_sweeping_controller`
 - `amr_sweeper_attitude_controller`
 - `amr_sweeper_collision_detector`
@@ -22,7 +22,7 @@ This repository is the controller layer for the AMR Sweeper. It turns human or a
 - `use_sim_time`: default `false`
 - `use_amr_sweeper_drive_controller`: default `true`
 - `use_amr_sweeper_tool_controller`: default `true`
-- `use_amr_sweeper_joystick`: default `true`
+- `use_amr_sweeper_teleop`: default `true`
 - `use_amr_sweeper_sweeping_controller`: default `true`
 - `use_amr_sweeper_attitude_controller`: default `true`
 - `use_amr_sweeper_collision_detector`: default `true`
@@ -32,7 +32,7 @@ This repository is the controller layer for the AMR Sweeper. It turns human or a
 - `use_sweeping_mode`: default `cmd_vel_sweeping`
 
 ## Overview
-Layer 2 sits between the hardware interfaces in layer 1 and the higher-level decision-making in layer 3. It contains the joystick input path, the sweeping-controller arbitration path for wheel and tool motion, the attitude supervision path driven by the robot IMU, the collision detector that fuses IMU and motor-force proxies, and the shared latched safety-stop controller.
+Layer 2 sits between the hardware interfaces in layer 1 and the higher-level decision-making in layer 3. It contains the teleop input path, the sweeping-controller arbitration path for wheel and tool motion, the attitude supervision path driven by the robot IMU, the collision detector that fuses IMU and motor-force proxies, and the shared latched safety-stop controller.
 
 ## Notes
 - The default command launches the full layer 2 controller bringup package.

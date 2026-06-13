@@ -23,9 +23,9 @@ def generate_launch_description():
     joy_dev = LaunchConfiguration("joy_dev")
     use_joy_node = LaunchConfiguration("use_joy_node")
     joy_params = os.path.join(
-        get_package_share_directory("amr_sweeper_joystick"),
+        get_package_share_directory("amr_sweeper_teleop"),
         "config",
-        "amr_sweeper_joystick.yaml",
+        "amr_sweeper_teleop.yaml",
     )
     use_joy_node_default = _load_use_joy_node_default(joy_params)
 
@@ -48,7 +48,7 @@ def generate_launch_description():
             namespace=namespace,
             output="screen",
             parameters=[joy_params],
-            remappings=[("cmd_vel", "cmd_vel_joy_drive")],
+            remappings=[("cmd_vel", "teleop/cmd_vel_drive")],
         ),
         Node(
             package="teleop_twist_joy",
@@ -57,6 +57,6 @@ def generate_launch_description():
             namespace=namespace,
             output="screen",
             parameters=[joy_params],
-            remappings=[("cmd_vel", "cmd_vel_joy_tools")],
+            remappings=[("cmd_vel", "teleop/cmd_vel_tools")],
         ),
     ])

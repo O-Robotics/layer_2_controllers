@@ -1,4 +1,4 @@
-#include "amr_sweeper_tool_controller/tool_controller.hpp"
+#include "tool_controller.hpp"
 
 #include <algorithm>
 #include <cmath>

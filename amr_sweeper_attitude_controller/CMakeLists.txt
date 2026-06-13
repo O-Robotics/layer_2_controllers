@@ -17,7 +17,7 @@ find_package(tf2_geometry_msgs REQUIRED)
 find_package(tf2_ros REQUIRED)
 
 add_executable(amr_sweeper_attitude_controller_node
-  src/amr_sweeper_attitude_controller_node.cpp
+  src/attitude_controller_node.cpp
 )
 set_target_properties(amr_sweeper_attitude_controller_node PROPERTIES OUTPUT_NAME attitude_controller_node)
 target_include_directories(amr_sweeper_attitude_controller_node PUBLIC

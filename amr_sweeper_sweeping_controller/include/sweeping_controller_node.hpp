@@ -55,8 +55,8 @@ private:
   [[nodiscard]] bool hasActiveToolSource(const rclcpp::Time & now) const;
 
   double publish_rate_hz_{20.0};
-  std::string wheel_output_topic_{"cmd_vel_drive"};
-  std::string tool_output_topic_{"cmd_vel_tools"};
+  std::string wheel_output_topic_{"sweeping_controller/cmd_vel_drive"};
+  std::string tool_output_topic_{"sweeping_controller/cmd_vel_tools"};
   std::string status_topic_{"sweeping_controller/status"};
   bool publish_idle_commands_{false};
 
