@@ -339,7 +339,7 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
   attitude_diagnostics_publisher_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
     "attitude_controller/status", rclcpp::SystemDefaultsQoS());
   base_joint_state_publisher_ = create_publisher<sensor_msgs::msg::JointState>(
-    "attitude_controller/joint_states", rclcpp::SystemDefaultsQoS());
+    "attitude_controller/joint_states", rclcpp::QoS(1).reliable().transient_local());
   stop_request_publisher_ = create_publisher<amr_sweeper_safety_msgs::msg::SafetyStop>(
     stop_topic_name_, rclcpp::QoS(10).reliable().transient_local());
 
@@ -360,6 +360,13 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
       std::placeholders::_1, std::placeholders::_2));
 
   configureImuInputs();
+
+  last_joint_state_estimate_.roll_rad = degreesToRadians(initial_roll_deg_);
+  last_joint_state_estimate_.pitch_rad = degreesToRadians(initial_pitch_deg_);
+  last_joint_state_estimate_.healthy = false;
+  if (publish_base_link_joint_states_) {
+    publishBaseLinkJointStates(startup_time_, last_joint_state_estimate_);
+  }
 
   const auto timer_period = std::chrono::duration<double>(1.0 / publish_rate_hz_);
   timer_ = create_wall_timer(
@@ -392,6 +399,10 @@ void AttitudeControllerNode::loadParameters()
   imu_startup_grace_sec_ = declare_parameter("imu_startup_grace_sec", 3.0);
   imu_timeout_stop_enabled_ = declare_parameter("imu_timeout_stop_enabled", true);
   publish_rate_hz_ = declare_parameter("publish_rate_hz", 50.0);
+  hold_last_joint_state_when_unhealthy_ =
+    declare_parameter("hold_last_joint_state_when_unhealthy", true);
+  initial_roll_deg_ = declare_parameter("initial_roll_deg", 0.0);
+  initial_pitch_deg_ = declare_parameter("initial_pitch_deg", 4.5);
   if (publish_rate_hz_ <= 0.0) {
     RCLCPP_WARN(get_logger(), "publish_rate_hz must be positive; using 50.0 Hz");
     publish_rate_hz_ = 50.0;
@@ -571,7 +582,10 @@ void AttitudeControllerNode::onTimer()
     publishAttitudeDiagnostics(stamp, last_estimate_, healthy_imu_count);
 
     if (publish_base_link_joint_states_) {
-      publishBaseLinkJointStates(stamp, last_estimate_);
+      if (last_estimate_.healthy || !hold_last_joint_state_when_unhealthy_) {
+        last_joint_state_estimate_ = last_estimate_;
+      }
+      publishBaseLinkJointStates(stamp, last_joint_state_estimate_);
     }
 
     if (publish_tool_link_tf_ && !tool_link_warning_logged_) {

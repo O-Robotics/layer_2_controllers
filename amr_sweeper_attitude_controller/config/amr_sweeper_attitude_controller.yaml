@@ -10,6 +10,9 @@
     base_roll_joint_name:            base_roll_joint          # URDF joint driven with estimated base roll.
     base_pitch_joint_name:           base_pitch_joint         # URDF joint driven with estimated base pitch.
     stop_topic_name:                 safety_msgs/stop         # Shared safety-stop topic consumed by the layer 2 safety controller.
+    initial_roll_deg:                0.0                      # Seed the roll joint at startup until healthy attitude estimates arrive.
+    initial_pitch_deg:               4.5                      # Seed the pitch joint at startup until healthy attitude estimates arrive.
+    hold_last_joint_state_when_unhealthy: true                # Keep publishing the last valid joint-state estimate instead of resetting TF when IMU data is stale or missing.
      
     publish_base_link_joint_states:  true                     # Publish roll/pitch into attitude_controller/joint_states for the robot model.
     publish_tool_link_tf:            false                    # Reserved future feature; keep disabled for now.

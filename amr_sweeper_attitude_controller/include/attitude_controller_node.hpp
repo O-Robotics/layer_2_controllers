@@ -139,6 +139,7 @@ private:
   bool safety_stop_enabled_{true};
   bool publish_base_link_joint_states_{true};
   bool publish_tool_link_tf_{false};
+  bool hold_last_joint_state_when_unhealthy_{true};
   bool tool_link_warning_logged_{false};
 
   std::string base_footprint_frame_{"base_footprint"};
@@ -153,6 +154,8 @@ private:
   double imu_startup_grace_sec_{3.0};
   bool imu_timeout_stop_enabled_{true};
   double publish_rate_hz_{50.0};
+  double initial_roll_deg_{0.0};
+  double initial_pitch_deg_{4.5};
 
   std::vector<std::string> imu_topics_;
   std::vector<double> imu_weights_;
@@ -162,6 +165,7 @@ private:
   StopSupervisorOptions stop_options_;
   StopSupervisor stop_supervisor_;
   AttitudeEstimate last_estimate_;
+  AttitudeEstimate last_joint_state_estimate_;
   bool last_stop_request_active_{false};
   std::string last_stop_reason_;
 
