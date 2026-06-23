@@ -5,7 +5,7 @@
     attitude_estimation.publish_rate_hz:               50.0                     # Base-link attitude estimation and TF publish rate in Hz.
     attitude_estimation.parent_frame:                  base_footprint           # Parent frame for the dynamic chassis attitude transform.
     attitude_estimation.child_frame:                   base_link                # Child frame for the dynamic chassis attitude transform.
-    attitude_estimation.publish_tf:                    true                     # Publish the dynamic base_footprint->base_link TF directly.
+    attitude_estimation.publish_tf:                    false                    # Test mode: keep the attitude estimate running, but do not publish base_footprint->base_link TF.
     attitude_estimation.hold_last_transform:           true                     # Keep publishing the last valid base-link transform when IMU data becomes unhealthy.
     attitude_estimation.initial_roll_deg:              0.0                      # Startup seed for base_link roll until a healthy estimate is available.
     attitude_estimation.initial_pitch_deg:             4.5                      # Startup seed for base_link pitch until a healthy estimate is available.
