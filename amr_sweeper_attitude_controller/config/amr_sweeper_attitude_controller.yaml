@@ -7,14 +7,13 @@
     base_footprint_frame:            base_footprint           # Base footprint frame used by the robot model and downstream consumers.
     base_link_frame:                 base_link                # Base link frame used for fused attitude output.
     tool_link_frame:                 tool_link                # Reserved for future tool-link attitude publishing.
-    base_roll_joint_name:            base_roll_joint          # URDF joint driven with estimated base roll.
-    base_pitch_joint_name:           base_pitch_joint         # URDF joint driven with estimated base pitch.
     stop_topic_name:                 safety_msgs/stop         # Shared safety-stop topic consumed by the layer 2 safety controller.
-    initial_roll_deg:                0.0                      # Seed the roll joint at startup until healthy attitude estimates arrive.
-    initial_pitch_deg:               4.5                      # Seed the pitch joint at startup until healthy attitude estimates arrive.
-    hold_last_joint_state_when_unhealthy: true                # Keep publishing the last valid joint-state estimate instead of resetting TF when IMU data is stale or missing.
+    initial_roll_deg:                0.0                      # Seed the base_footprint->base_link roll at startup until healthy attitude estimates arrive.
+    initial_pitch_deg:               4.5                      # Seed the base_footprint->base_link pitch at startup until healthy attitude estimates arrive.
+    base_link_origin_z_m:            0.13                     # Fixed vertical offset from base_footprint to base_link, preserved from the old URDF joint chain.
+    hold_last_transform_when_unhealthy: true                  # Keep publishing the last valid base_footprint->base_link transform instead of resetting it when IMU data is stale or missing.
      
-    publish_base_link_joint_states:  true                     # Publish roll/pitch into attitude_controller/joint_states for the robot model.
+    publish_base_link_tf:            true                     # Publish the dynamic base_footprint->base_link TF directly instead of driving URDF roll/pitch joints.
     publish_tool_link_tf:            false                    # Reserved future feature; keep disabled for now.
      
     # -- IMU inputs ------------------------------------------------------------

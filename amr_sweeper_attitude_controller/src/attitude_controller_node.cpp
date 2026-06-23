@@ -134,6 +134,14 @@ bool weightedAverageOrientation(
   return true;
 }
 
+geometry_msgs::msg::Quaternion toQuaternionMsg(const double roll_rad, const double pitch_rad)
+{
+  tf2::Quaternion quaternion;
+  quaternion.setRPY(roll_rad, pitch_rad, 0.0);
+  quaternion.normalize();
+  return tf2::toMsg(quaternion);
+}
+
 void appendReason(
   std::vector<std::string> * reasons, const bool condition,
   const std::string & reason)
@@ -338,10 +346,9 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
     "attitude_controller/roll_pitch", rclcpp::SystemDefaultsQoS());
   attitude_diagnostics_publisher_ = create_publisher<diagnostic_msgs::msg::DiagnosticArray>(
     "attitude_controller/status", rclcpp::SystemDefaultsQoS());
-  base_joint_state_publisher_ = create_publisher<sensor_msgs::msg::JointState>(
-    "attitude_controller/joint_states", rclcpp::QoS(1).reliable().transient_local());
   stop_request_publisher_ = create_publisher<amr_sweeper_safety_msgs::msg::SafetyStop>(
     stop_topic_name_, rclcpp::QoS(10).reliable().transient_local());
+  tf_broadcaster_ = std::make_unique<tf2_ros::TransformBroadcaster>(*this);
 
   reset_fault_service_ = create_service<std_srvs::srv::Trigger>(
     "amr_sweeper_attitude_controller/reset_fault",
@@ -361,11 +368,11 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
 
   configureImuInputs();
 
-  last_joint_state_estimate_.roll_rad = degreesToRadians(initial_roll_deg_);
-  last_joint_state_estimate_.pitch_rad = degreesToRadians(initial_pitch_deg_);
-  last_joint_state_estimate_.healthy = false;
-  if (publish_base_link_joint_states_) {
-    publishBaseLinkJointStates(startup_time_, last_joint_state_estimate_);
+  last_transform_estimate_.roll_rad = degreesToRadians(initial_roll_deg_);
+  last_transform_estimate_.pitch_rad = degreesToRadians(initial_pitch_deg_);
+  last_transform_estimate_.healthy = false;
+  if (publish_base_link_tf_) {
+    publishBaseLinkTransform(startup_time_, last_transform_estimate_);
   }
 
   const auto timer_period = std::chrono::duration<double>(1.0 / publish_rate_hz_);
@@ -382,11 +389,9 @@ void AttitudeControllerNode::loadParameters()
   base_footprint_frame_ = declare_parameter("base_footprint_frame", "base_footprint");
   base_link_frame_ = declare_parameter("base_link_frame", "base_link");
   tool_link_frame_ = declare_parameter("tool_link_frame", "tool_link");
-  base_roll_joint_name_ = declare_parameter("base_roll_joint_name", "base_roll_joint");
-  base_pitch_joint_name_ = declare_parameter("base_pitch_joint_name", "base_pitch_joint");
   stop_topic_name_ = declare_parameter("stop_topic_name", "safety_msgs/stop");
 
-  publish_base_link_joint_states_ = declare_parameter("publish_base_link_joint_states", true);
+  publish_base_link_tf_ = declare_parameter("publish_base_link_tf", true);
   publish_tool_link_tf_ = declare_parameter("publish_tool_link_tf", false);
 
   imu_topics_ = declare_parameter<std::vector<std::string>>(
@@ -399,10 +404,11 @@ void AttitudeControllerNode::loadParameters()
   imu_startup_grace_sec_ = declare_parameter("imu_startup_grace_sec", 3.0);
   imu_timeout_stop_enabled_ = declare_parameter("imu_timeout_stop_enabled", true);
   publish_rate_hz_ = declare_parameter("publish_rate_hz", 50.0);
-  hold_last_joint_state_when_unhealthy_ =
-    declare_parameter("hold_last_joint_state_when_unhealthy", true);
+  hold_last_transform_when_unhealthy_ =
+    declare_parameter("hold_last_transform_when_unhealthy", true);
   initial_roll_deg_ = declare_parameter("initial_roll_deg", 0.0);
   initial_pitch_deg_ = declare_parameter("initial_pitch_deg", 4.5);
+  base_link_origin_z_m_ = declare_parameter("base_link_origin_z_m", 0.13);
   if (publish_rate_hz_ <= 0.0) {
     RCLCPP_WARN(get_logger(), "publish_rate_hz must be positive; using 50.0 Hz");
     publish_rate_hz_ = 50.0;
@@ -581,11 +587,11 @@ void AttitudeControllerNode::onTimer()
     publishAttitude(stamp, last_estimate_);
     publishAttitudeDiagnostics(stamp, last_estimate_, healthy_imu_count);
 
-    if (publish_base_link_joint_states_) {
-      if (last_estimate_.healthy || !hold_last_joint_state_when_unhealthy_) {
-        last_joint_state_estimate_ = last_estimate_;
+    if (publish_base_link_tf_) {
+      if (last_estimate_.healthy || !hold_last_transform_when_unhealthy_) {
+        last_transform_estimate_ = last_estimate_;
       }
-      publishBaseLinkJointStates(stamp, last_joint_state_estimate_);
+      publishBaseLinkTransform(stamp, last_transform_estimate_);
     }
 
     if (publish_tool_link_tf_ && !tool_link_warning_logged_) {
@@ -701,16 +707,19 @@ void AttitudeControllerNode::publishAttitudeDiagnostics(
 
   attitude_diagnostics_publisher_->publish(array);
 }
-
-void AttitudeControllerNode::publishBaseLinkJointStates(
+void AttitudeControllerNode::publishBaseLinkTransform(
   const rclcpp::Time & stamp,
   const AttitudeEstimate & estimate)
 {
-  sensor_msgs::msg::JointState msg;
-  msg.header.stamp = stamp;
-  msg.name = {base_roll_joint_name_, base_pitch_joint_name_};
-  msg.position = {estimate.roll_rad, estimate.pitch_rad};
-  base_joint_state_publisher_->publish(msg);
+  geometry_msgs::msg::TransformStamped transform;
+  transform.header.stamp = stamp;
+  transform.header.frame_id = base_footprint_frame_;
+  transform.child_frame_id = base_link_frame_;
+  transform.transform.translation.x = 0.0;
+  transform.transform.translation.y = 0.0;
+  transform.transform.translation.z = base_link_origin_z_m_;
+  transform.transform.rotation = toQuaternionMsg(estimate.roll_rad, estimate.pitch_rad);
+  tf_broadcaster_->sendTransform(transform);
 }
 
 void AttitudeControllerNode::publishSafety(

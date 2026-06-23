@@ -7,14 +7,15 @@
 
 #include "amr_sweeper_safety_msgs/msg/safety_stop.hpp"
 #include "diagnostic_msgs/msg/diagnostic_array.hpp"
+#include "geometry_msgs/msg/transform_stamped.hpp"
 #include "geometry_msgs/msg/vector3.hpp"
 #include "geometry_msgs/msg/vector3_stamped.hpp"
 #include "rclcpp/rclcpp.hpp"
 #include "sensor_msgs/msg/imu.hpp"
-#include "sensor_msgs/msg/joint_state.hpp"
 #include "std_srvs/srv/set_bool.hpp"
 #include "std_srvs/srv/trigger.hpp"
 #include "tf2_ros/buffer.h"
+#include "tf2_ros/transform_broadcaster.h"
 #include "tf2_ros/transform_listener.h"
 
 namespace amr_sweeper_attitude_controller
@@ -122,7 +123,7 @@ private:
     const rclcpp::Time & stamp,
     const AttitudeEstimate & estimate,
     std::size_t healthy_imu_count);
-  void publishBaseLinkJointStates(const rclcpp::Time & stamp, const AttitudeEstimate & estimate);
+  void publishBaseLinkTransform(const rclcpp::Time & stamp, const AttitudeEstimate & estimate);
   void publishSafety(const rclcpp::Time & stamp, const StopSupervisorState & state);
 
   void resetFaultService(
@@ -137,16 +138,14 @@ private:
 
   bool attitude_estimation_enabled_{true};
   bool safety_stop_enabled_{true};
-  bool publish_base_link_joint_states_{true};
+  bool publish_base_link_tf_{true};
   bool publish_tool_link_tf_{false};
-  bool hold_last_joint_state_when_unhealthy_{true};
+  bool hold_last_transform_when_unhealthy_{true};
   bool tool_link_warning_logged_{false};
 
   std::string base_footprint_frame_{"base_footprint"};
   std::string base_link_frame_{"base_link"};
   std::string tool_link_frame_{"tool_link"};
-  std::string base_roll_joint_name_{"base_roll_joint"};
-  std::string base_pitch_joint_name_{"base_pitch_joint"};
   std::string stop_topic_name_{"safety_msgs/stop"};
 
   double imu_timeout_warning_sec_{0.3};
@@ -156,6 +155,7 @@ private:
   double publish_rate_hz_{50.0};
   double initial_roll_deg_{0.0};
   double initial_pitch_deg_{4.5};
+  double base_link_origin_z_m_{0.13};
 
   std::vector<std::string> imu_topics_;
   std::vector<double> imu_weights_;
@@ -165,15 +165,15 @@ private:
   StopSupervisorOptions stop_options_;
   StopSupervisor stop_supervisor_;
   AttitudeEstimate last_estimate_;
-  AttitudeEstimate last_joint_state_estimate_;
+  AttitudeEstimate last_transform_estimate_;
   bool last_stop_request_active_{false};
   std::string last_stop_reason_;
 
   rclcpp::Publisher<geometry_msgs::msg::Vector3Stamped>::SharedPtr attitude_publisher_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr
     attitude_diagnostics_publisher_;
-  rclcpp::Publisher<sensor_msgs::msg::JointState>::SharedPtr base_joint_state_publisher_;
   rclcpp::Publisher<amr_sweeper_safety_msgs::msg::SafetyStop>::SharedPtr stop_request_publisher_;
+  std::unique_ptr<tf2_ros::TransformBroadcaster> tf_broadcaster_;
 
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reset_fault_service_;
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr enable_attitude_service_;
