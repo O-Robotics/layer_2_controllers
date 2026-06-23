@@ -36,6 +36,7 @@ private:
   struct CanInterfaceState
   {
     std::string interface_name;
+    std::vector<uint32_t> accepted_can_ids;
     int socket_fd{-1};
   };
 

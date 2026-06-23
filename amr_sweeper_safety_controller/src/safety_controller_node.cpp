@@ -302,6 +302,21 @@ void SafetyControllerNode::loadParameters()
   button_can_state_.interface_name = button_can_interface_;
   odrive_feedback_can_state_.interface_name = odrive_can_interface_;
   steadydrive_feedback_can_state_.interface_name = steadydrive_can_interface_;
+  odrive_can_state_.accepted_can_ids.clear();
+  steadydrive_can_state_.accepted_can_ids.clear();
+  button_can_state_.accepted_can_ids = {
+    button_can_base_id_,
+    (button_can_base_id_ + 1U) & 0x7FFU};
+  odrive_feedback_can_state_.accepted_can_ids.clear();
+  steadydrive_feedback_can_state_.accepted_can_ids.clear();
+  for (const auto node_id : odrive_node_ids_) {
+    odrive_feedback_can_state_.accepted_can_ids.push_back((node_id << 5U) | kOdriveHeartbeatCommandId);
+    odrive_feedback_can_state_.accepted_can_ids.push_back(
+      (node_id << 5U) | kOdriveGetEncoderEstimatesCommandId);
+  }
+  for (const auto can_id : steadydrive_motor_can_ids_) {
+    steadydrive_feedback_can_state_.accepted_can_ids.push_back(can_id & CAN_SFF_MASK);
+  }
 
   odrive_feedback_states_.clear();
   odrive_feedback_states_.reserve(odrive_node_ids_.size());
@@ -910,6 +925,26 @@ bool SafetyControllerNode::ensureCanInterface(
 
   const int can_loopback = 0;
   (void)setsockopt(socket_fd, SOL_CAN_RAW, CAN_RAW_LOOPBACK, &can_loopback, sizeof(can_loopback));
+  if (!can_interface.accepted_can_ids.empty()) {
+    std::vector<can_filter> filters;
+    filters.reserve(can_interface.accepted_can_ids.size());
+    for (const auto can_id : can_interface.accepted_can_ids) {
+      can_filter filter {};
+      filter.can_id = can_id & CAN_SFF_MASK;
+      filter.can_mask = CAN_SFF_MASK;
+      filters.push_back(filter);
+    }
+    if (::setsockopt(
+        socket_fd, SOL_CAN_RAW, CAN_RAW_FILTER, filters.data(),
+        static_cast<socklen_t>(filters.size() * sizeof(can_filter))) < 0)
+    {
+      direct_motor_stop_last_failure_message_ =
+        description + ": filter setup failed on '" + can_interface.interface_name +
+        "': " + std::strerror(errno);
+      ::close(socket_fd);
+      return false;
+    }
+  }
   const int current_flags = ::fcntl(socket_fd, F_GETFL, 0);
   if (current_flags >= 0) {
     (void)::fcntl(socket_fd, F_SETFL, current_flags | O_NONBLOCK);
