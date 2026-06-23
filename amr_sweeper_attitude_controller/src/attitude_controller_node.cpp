@@ -384,31 +384,50 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
 void AttitudeControllerNode::loadParameters()
 {
   attitude_estimation_enabled_ = declare_parameter("attitude_estimation_enabled", true);
+  (void)declare_parameter("tool_angle_estimation_enabled", false);
   safety_stop_enabled_ = declare_parameter("safety_stop_enabled", true);
 
-  base_footprint_frame_ = declare_parameter("base_footprint_frame", "base_footprint");
-  base_link_frame_ = declare_parameter("base_link_frame", "base_link");
-  tool_link_frame_ = declare_parameter("tool_link_frame", "tool_link");
+  base_footprint_frame_ =
+    declare_parameter("attitude_estimation.parent_frame", "base_footprint");
+  base_link_frame_ = declare_parameter("attitude_estimation.child_frame", "base_link");
+  tool_link_frame_ = declare_parameter("tool_angle_estimation.child_frame", "tool_link");
   stop_topic_name_ = declare_parameter("stop_topic_name", "safety_msgs/stop");
 
-  publish_base_link_tf_ = declare_parameter("publish_base_link_tf", true);
-  publish_tool_link_tf_ = declare_parameter("publish_tool_link_tf", false);
+  publish_base_link_tf_ = declare_parameter("attitude_estimation.publish_tf", true);
+  publish_tool_link_tf_ = declare_parameter("tool_angle_estimation.publish_tf", false);
 
-  imu_topics_ = declare_parameter<std::vector<std::string>>(
-    "imu_topics", std::vector<std::string>{"imu/data_raw"});
-  imu_weights_ = declare_parameter<std::vector<double>>(
-    "imu_weights", std::vector<double>{1.0});
+  imu_topics_ = {
+    declare_parameter("attitude_estimation.imu_topic", std::string("imu/data_raw"))};
+  imu_weights_ = {
+    declare_parameter("attitude_estimation.imu_weights", 1.0)};
 
-  imu_timeout_warning_sec_ = declare_parameter("imu_timeout_warning_sec", 0.3);
-  imu_timeout_error_sec_ = declare_parameter("imu_timeout_error_sec", 1.0);
-  imu_startup_grace_sec_ = declare_parameter("imu_startup_grace_sec", 3.0);
-  imu_timeout_stop_enabled_ = declare_parameter("imu_timeout_stop_enabled", true);
-  publish_rate_hz_ = declare_parameter("publish_rate_hz", 50.0);
+  imu_timeout_warning_sec_ =
+    declare_parameter("attitude_estimation.imu_timeout_warning_sec", 0.3);
+  imu_timeout_error_sec_ =
+    declare_parameter("attitude_estimation.imu_timeout_error_sec", 1.0);
+  imu_startup_grace_sec_ =
+    declare_parameter("attitude_estimation.imu_startup_grace_sec", 3.0);
+  imu_timeout_stop_enabled_ =
+    declare_parameter("attitude_estimation.imu_timeout_stop_enabled", true);
+  publish_rate_hz_ = declare_parameter("attitude_estimation.publish_rate_hz", 50.0);
   hold_last_transform_when_unhealthy_ =
-    declare_parameter("hold_last_transform_when_unhealthy", true);
-  initial_roll_deg_ = declare_parameter("initial_roll_deg", 0.0);
-  initial_pitch_deg_ = declare_parameter("initial_pitch_deg", 4.5);
-  base_link_origin_z_m_ = declare_parameter("base_link_origin_z_m", 0.13);
+    declare_parameter("attitude_estimation.hold_last_transform", true);
+  initial_roll_deg_ = declare_parameter("attitude_estimation.initial_roll_deg", 0.0);
+  initial_pitch_deg_ = declare_parameter("attitude_estimation.initial_pitch_deg", 4.5);
+  base_link_origin_z_m_ = declare_parameter("attitude_estimation.origin_z_m", 0.13);
+
+  (void)declare_parameter("tool_angle_estimation.publish_rate_hz", 50.0);
+  (void)declare_parameter("tool_angle_estimation.parent_frame", std::string("base_link"));
+  (void)declare_parameter("tool_angle_estimation.hold_last_transform", true);
+  (void)declare_parameter("tool_angle_estimation.initial_roll_deg", 0.0);
+  (void)declare_parameter("tool_angle_estimation.initial_pitch_deg", 0.0);
+  (void)declare_parameter("tool_angle_estimation.origin_z_m", 0.0);
+  (void)declare_parameter("tool_angle_estimation.imu_topic", std::string(""));
+  (void)declare_parameter("tool_angle_estimation.imu_weights", 1.0);
+  (void)declare_parameter("tool_angle_estimation.imu_timeout_warning_sec", 0.3);
+  (void)declare_parameter("tool_angle_estimation.imu_timeout_error_sec", 1.0);
+  (void)declare_parameter("tool_angle_estimation.imu_startup_grace_sec", 3.0);
+  (void)declare_parameter("tool_angle_estimation.imu_timeout_stop_enabled", false);
   if (publish_rate_hz_ <= 0.0) {
     RCLCPP_WARN(get_logger(), "publish_rate_hz must be positive; using 50.0 Hz");
     publish_rate_hz_ = 50.0;

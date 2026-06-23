@@ -21,6 +21,10 @@ def generate_launch_description():
                         "amr_sweeper_attitude_controller.yaml",
                     ]
                 ),
+                description=(
+                    "Controller parameter file. Defaults expect the grouped "
+                    "attitude_estimation.* and tool_angle_estimation.* layout."
+                ),
             ),
             Node(
                 package="amr_sweeper_attitude_controller",

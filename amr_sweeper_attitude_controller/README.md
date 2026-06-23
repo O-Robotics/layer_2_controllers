@@ -26,17 +26,34 @@ This package estimates chassis attitude and exposes safety-stop supervision sign
 
 ## Default Parameters
 - `attitude_estimation_enabled`: default `true`
+- `attitude_estimation.parent_frame`: default `base_footprint`
+- `attitude_estimation.child_frame`: default `base_link`
+- `attitude_estimation.publish_tf`: default `true`
+- `attitude_estimation.hold_last_transform`: default `true`
+- `attitude_estimation.initial_roll_deg`: default `0.0`
+- `attitude_estimation.initial_pitch_deg`: default `4.5`
+- `attitude_estimation.origin_z_m`: default `0.13`
+- `attitude_estimation.imu_topic`: default `imu/data_raw`
+- `attitude_estimation.imu_weights`: default `1.0`
+- `attitude_estimation.imu_timeout_warning_sec`: default `0.3`
+- `attitude_estimation.imu_timeout_error_sec`: default `1.0`
+- `attitude_estimation.imu_startup_grace_sec`: default `6.0`
+- `attitude_estimation.imu_timeout_stop_enabled`: default `true`
+- `tool_angle_estimation_enabled`: default `false`
+- `tool_angle_estimation.parent_frame`: default `base_link`
+- `tool_angle_estimation.child_frame`: default `tool_link`
+- `tool_angle_estimation.publish_tf`: default `false`
+- `tool_angle_estimation.hold_last_transform`: default `true`
+- `tool_angle_estimation.initial_roll_deg`: default `0.0`
+- `tool_angle_estimation.initial_pitch_deg`: default `0.0`
+- `tool_angle_estimation.origin_z_m`: default `0.0`
+- `tool_angle_estimation.imu_topic`: default `""`
+- `tool_angle_estimation.imu_weights`: default `1.0`
+- `tool_angle_estimation.imu_timeout_warning_sec`: default `0.3`
+- `tool_angle_estimation.imu_timeout_error_sec`: default `1.0`
+- `tool_angle_estimation.imu_startup_grace_sec`: default `6.0`
+- `tool_angle_estimation.imu_timeout_stop_enabled`: default `false`
 - `safety_stop_enabled`: default `true`
-- `publish_base_link_tf`: default `true`
-- `publish_tool_link_tf`: default `false`
-- `imu_topics`: default `["imu/data_raw"]`
-- `imu_weights`: default `[1.0]`
-- `imu_timeout_warning_sec`: default `0.3`
-- `imu_timeout_error_sec`: default `1.0`
-- `imu_startup_grace_sec`: default `3.0`
-- `imu_timeout_stop_enabled`: default `true`
-- `publish_rate_hz`: default `10.0`
-- `base_link_origin_z_m`: default `0.13`
 - `stop.roll_warning_deg`: default `15.0`
 - `stop.pitch_warning_deg`: default `15.0`
 - `stop.roll_stop_deg`: default `30.0`
@@ -46,7 +63,7 @@ This package estimates chassis attitude and exposes safety-stop supervision sign
 - `stop.require_manual_reset`: default `true`
 
 ## Interfaces
-- Subscribes to `imu/data_raw` in the selected robot namespace by default and uses the IMU orientation quaternion.
+- Subscribes to `attitude_estimation.imu_topic`, default `imu/data_raw`, and uses the IMU orientation quaternion.
 - Publishes `attitude_controller/roll_pitch` as `geometry_msgs/msg/Vector3Stamped` with `x=roll_rad`, `y=pitch_rad`, `z=0`.
 - Publishes `attitude_controller/status` as `diagnostic_msgs/msg/DiagnosticArray`.
 - Publishes `/tf` updates for the dynamic `base_footprint -> base_link` transform directly.
@@ -56,9 +73,9 @@ This package estimates chassis attitude and exposes safety-stop supervision sign
 - Provides `amr_sweeper_attitude_controller/enable_safety_stop` as `std_srvs/srv/SetBool`.
 
 ## Notes
-- Default IMU input: `imu/data_raw` in the selected robot namespace.
+- Default IMU input: `attitude_estimation.imu_topic`, which resolves to `imu/data_raw` in the selected robot namespace.
 - Default outputs: `attitude_controller/roll_pitch`, `attitude_controller/status`, and `safety_msgs/stop` in the selected robot namespace.
-- Default base-attitude output: dynamic `base_footprint -> base_link` TF.
+- Default base-attitude output: dynamic `attitude_estimation.parent_frame -> attitude_estimation.child_frame` TF.
 - Default services: `amr_sweeper_attitude_controller/reset_fault`, `amr_sweeper_attitude_controller/enable_attitude_estimation`, and `amr_sweeper_attitude_controller/enable_safety_stop` in the selected robot namespace.
-- When `publish_base_link_tf` is true, this node directly publishes the `base_footprint -> base_link` transform using the estimated roll and pitch plus the configured `base_link_origin_z_m` height offset.
-- The controller expects the IMU `header.frame_id` to be transformable into `base_link` when a non-empty frame id is present.
+- When `attitude_estimation.publish_tf` is true, this node directly publishes the `attitude_estimation.parent_frame -> attitude_estimation.child_frame` transform using the estimated roll and pitch plus the configured `attitude_estimation.origin_z_m` height offset.
+- The controller expects the IMU `header.frame_id` to be transformable into `attitude_estimation.child_frame` when a non-empty frame id is present.
