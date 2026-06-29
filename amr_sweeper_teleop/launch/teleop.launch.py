@@ -33,6 +33,7 @@ def generate_launch_description():
         DeclareLaunchArgument("namespace", default_value="amr_sweeper"),
         DeclareLaunchArgument("joy_dev", default_value="/dev/input/js0"),
         DeclareLaunchArgument("use_joy_node", default_value=use_joy_node_default),
+        DeclareLaunchArgument("use_simulation", default_value="false"),
         Node(
             package="joy",
             executable="joy_node",

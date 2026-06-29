@@ -23,6 +23,7 @@ def _as_bool(value: str) -> bool:
 
 def _launch_setup(context, *args, **kwargs):
     namespace = LaunchConfiguration("namespace").perform(context)
+    use_simulation = LaunchConfiguration("use_simulation").perform(context)
     use_amr_sweeper_drive_controller = _as_bool(
         LaunchConfiguration("use_amr_sweeper_drive_controller").perform(context))
     use_amr_sweeper_tool_controller = _as_bool(
@@ -56,6 +57,7 @@ def _launch_setup(context, *args, **kwargs):
                 "namespace": namespace,
                 "joy_dev": joy_dev,
                 "use_joy_node": use_joy_node,
+                "use_simulation": use_simulation,
             }.items(),
         ))
 
@@ -87,7 +89,10 @@ def _launch_setup(context, *args, **kwargs):
     if use_amr_sweeper_safety_controller:
         controller_dependent_actions.append(IncludeLaunchDescription(
             PythonLaunchDescriptionSource(_launch_file("amr_sweeper_safety_controller", "safety_controller.launch.py")),
-            launch_arguments={"namespace": namespace}.items(),
+            launch_arguments={
+                "namespace": namespace,
+                "use_simulation": use_simulation,
+            }.items(),
         ))
 
     drive_controller_spawner = None
@@ -176,6 +181,7 @@ def generate_launch_description():
         SetEnvironmentVariable("RCUTILS_COLORIZED_OUTPUT", "1"),
         SetEnvironmentVariable("RCUTILS_CONSOLE_OUTPUT_FORMAT", console_output_format),
         DeclareLaunchArgument("namespace", default_value="amr_sweeper"),
+        DeclareLaunchArgument("use_simulation", default_value="false"),
         DeclareLaunchArgument("use_sim_time", default_value="false"),
         DeclareLaunchArgument("use_amr_sweeper_drive_controller", default_value="true"),
         DeclareLaunchArgument("use_amr_sweeper_tool_controller", default_value="true"),
