@@ -23,6 +23,7 @@ def _as_bool(value: str) -> bool:
 
 def _launch_setup(context, *args, **kwargs):
     namespace = LaunchConfiguration("namespace").perform(context)
+    use_sim_time = LaunchConfiguration("use_sim_time").perform(context)
     use_simulation = LaunchConfiguration("use_simulation").perform(context)
     use_amr_sweeper_drive_controller = _as_bool(
         LaunchConfiguration("use_amr_sweeper_drive_controller").perform(context))
@@ -64,7 +65,10 @@ def _launch_setup(context, *args, **kwargs):
     if use_amr_sweeper_attitude_controller:
         actions.append(IncludeLaunchDescription(
             PythonLaunchDescriptionSource(_launch_file("amr_sweeper_attitude_controller", "attitude_controller.launch.py")),
-            launch_arguments={"namespace": namespace}.items(),
+            launch_arguments={
+                "namespace": namespace,
+                "use_sim_time": use_sim_time,
+            }.items(),
         ))
 
     if use_amr_sweeper_collision_detector:
@@ -73,7 +77,10 @@ def _launch_setup(context, *args, **kwargs):
                 _launch_file(
                     "amr_sweeper_collision_detector",
                     "amr_sweeper_collision_detector.launch.py")),
-            launch_arguments={"namespace": namespace}.items(),
+            launch_arguments={
+                "namespace": namespace,
+                "use_sim_time": use_sim_time,
+            }.items(),
         ))
 
     if use_amr_sweeper_sweeping_controller:
@@ -91,6 +98,7 @@ def _launch_setup(context, *args, **kwargs):
             PythonLaunchDescriptionSource(_launch_file("amr_sweeper_safety_controller", "safety_controller.launch.py")),
             launch_arguments={
                 "namespace": namespace,
+                "use_sim_time": use_sim_time,
                 "use_simulation": use_simulation,
             }.items(),
         ))

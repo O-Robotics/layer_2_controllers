@@ -189,7 +189,14 @@ ImuHealth checkImuHealth(
   const rclcpp::Time & now,
   const ImuHealthConfig & config)
 {
+  if (isZeroTime(now)) {
+    return {false, true, false, "waiting for ROS time"};
+  }
+
   if (!input.has_message) {
+    if (isZeroTime(input.last_received_time)) {
+      return {false, true, false, "waiting for first message during startup grace"};
+    }
     if (!isZeroTime(input.last_received_time) &&
       (now - input.last_received_time).seconds() < config.startup_grace_sec)
     {
@@ -557,6 +564,16 @@ bool AttitudeControllerNode::transformMeasurementToBaseLink(
 void AttitudeControllerNode::onTimer()
 {
   const auto stamp = now();
+  if (isZeroTime(startup_time_) && !isZeroTime(stamp)) {
+    // Under use_sim_time the constructor may run before /clock advances, so
+    // defer the startup-grace baseline until ROS time is actually valid.
+    startup_time_ = stamp;
+    for (auto & input : imu_inputs_) {
+      if (!input.has_message && isZeroTime(input.last_received_time)) {
+        input.last_received_time = stamp;
+      }
+    }
+  }
   const ImuHealthConfig health_config{
     imu_timeout_warning_sec_,
     imu_timeout_error_sec_,

@@ -11,10 +11,14 @@ def _as_bool(value: str) -> bool:
 
 def _launch_setup(context, *args, **kwargs):
     namespace = LaunchConfiguration("namespace")
+    use_sim_time = LaunchConfiguration("use_sim_time")
     params_file = LaunchConfiguration("params_file")
     use_simulation = _as_bool(LaunchConfiguration("use_simulation").perform(context))
 
-    parameters = [params_file]
+    parameters = [
+        params_file,
+        {"use_sim_time": use_sim_time},
+    ]
     if use_simulation:
         parameters.append(
             {
@@ -42,6 +46,7 @@ def generate_launch_description():
     return LaunchDescription(
         [
             DeclareLaunchArgument("namespace", default_value="amr_sweeper"),
+            DeclareLaunchArgument("use_sim_time", default_value="false"),
             DeclareLaunchArgument("use_simulation", default_value="false"),
             DeclareLaunchArgument(
                 "params_file",
