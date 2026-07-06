@@ -14,7 +14,7 @@
   <exec_depend>ament_index_python</exec_depend>
   <exec_depend>controller_manager</exec_depend>
   <exec_depend>amr_sweeper_description</exec_depend>
-  <exec_depend>amr_sweeper_joystick</exec_depend>
+  <exec_depend>amr_sweeper_teleop</exec_depend>
   <exec_depend>amr_sweeper_sweeping_controller</exec_depend>
   <exec_depend>amr_sweeper_drive_controller</exec_depend>
   <exec_depend>amr_sweeper_tool_controller</exec_depend>
