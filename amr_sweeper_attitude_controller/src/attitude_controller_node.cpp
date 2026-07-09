@@ -378,7 +378,7 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
   last_transform_estimate_.roll_rad = degreesToRadians(initial_roll_deg_);
   last_transform_estimate_.pitch_rad = degreesToRadians(initial_pitch_deg_);
   last_transform_estimate_.healthy = false;
-  if (publish_base_link_tf_) {
+  if (publish_base_link_tf_ && !isZeroTime(startup_time_)) {
     publishBaseLinkTransform(startup_time_, last_transform_estimate_);
   }
 
@@ -564,6 +564,9 @@ bool AttitudeControllerNode::transformMeasurementToBaseLink(
 void AttitudeControllerNode::onTimer()
 {
   const auto stamp = now();
+  if (isZeroTime(stamp)) {
+    return;
+  }
   if (isZeroTime(startup_time_) && !isZeroTime(stamp)) {
     // Under use_sim_time the constructor may run before /clock advances, so
     // defer the startup-grace baseline until ROS time is actually valid.
