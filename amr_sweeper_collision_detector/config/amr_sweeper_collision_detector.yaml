@@ -1,7 +1,8 @@
 /**:
   ros__parameters:
     enabled:                              true                     # Master enable for collision detection.
-    publish_rate_hz:                      20.0                     # Collision evaluation and status publish rate in Hz.
+    publish_rate_hz:                      20.0                     # Collision evaluation and impact_state publish rate in Hz; keep fast, this is the real-time safety signal.
+    status_publish_rate_hz:               2.0                      # Heartbeat rate for collision_detector/status; decoupled from publish_rate_hz.
     latch_collision:                      true                     # Keep the detector latched once an impact is observed until reset.
     publish_stop_request:                 true                     # Publish a shared safety-stop request when a new impact is detected.
 

@@ -210,6 +210,11 @@ SafetyControllerNode::SafetyControllerNode(const rclcpp::NodeOptions & options)
     std::chrono::duration_cast<std::chrono::nanoseconds>(timer_period),
     std::bind(&SafetyControllerNode::onPublishTimer, this));
 
+  const auto status_period = std::chrono::duration<double>(1.0 / status_publish_rate_hz_);
+  status_timer_ = create_wall_timer(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(status_period),
+    std::bind(&SafetyControllerNode::publishStatus, this));
+
   noteProgress();
   watchdog_running_.store(true);
   watchdog_thread_ = std::thread(&SafetyControllerNode::watchdogThreadMain, this);
@@ -236,6 +241,11 @@ void SafetyControllerNode::loadParameters()
   if (publish_rate_hz_ <= 0.0) {
     RCLCPP_WARN(get_logger(), "publish_rate_hz must be positive; using 20.0 Hz");
     publish_rate_hz_ = 20.0;
+  }
+  status_publish_rate_hz_ = declare_parameter("status_publish_rate_hz", 2.0);
+  if (status_publish_rate_hz_ <= 0.0) {
+    RCLCPP_WARN(get_logger(), "status_publish_rate_hz must be positive; using 2.0 Hz");
+    status_publish_rate_hz_ = 2.0;
   }
 
   stop_topic_name_ = declare_parameter("stop_topic_name", "safety_msgs/stop");
@@ -512,8 +522,6 @@ void SafetyControllerNode::onPublishTimer()
     requestMissionStop();
     requestFsmFaultState();
   }
-
-  publishStatus();
 }
 
 void SafetyControllerNode::publishZeroCommands()

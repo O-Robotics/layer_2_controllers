@@ -42,6 +42,9 @@ SweepingControllerNode::SweepingControllerNode(const rclcpp::NodeOptions & optio
   publish_timer_ = create_wall_timer(
     std::chrono::duration<double>(1.0 / publish_rate_hz_),
     std::bind(&SweepingControllerNode::publishSelectedCommands, this));
+  status_timer_ = create_wall_timer(
+    std::chrono::duration<double>(1.0 / status_publish_rate_hz_),
+    std::bind(&SweepingControllerNode::publishLatestStatus, this));
 
   RCLCPP_INFO(
     get_logger(),
@@ -53,6 +56,7 @@ SweepingControllerNode::SweepingControllerNode(const rclcpp::NodeOptions & optio
 void SweepingControllerNode::loadParameters()
 {
   publish_rate_hz_ = declare_parameter("publish_rate_hz", 20.0);
+  status_publish_rate_hz_ = declare_parameter("status_publish_rate_hz", 2.0);
   wheel_output_topic_ = declare_parameter(
     "wheel_output_topic", std::string{"sweeping_controller/cmd_vel_drive"});
   tool_output_topic_ = declare_parameter(
@@ -184,7 +188,13 @@ void SweepingControllerNode::publishSelectedCommands()
   if (publish_idle_commands_ || hasActiveToolSource(now)) {
     tool_command_publisher_->publish(tool_command);
   }
-  publishStatus(wheel_source, tool_source);
+  last_wheel_source_ = wheel_source;
+  last_tool_source_ = tool_source;
+}
+
+void SweepingControllerNode::publishLatestStatus()
+{
+  publishStatus(last_wheel_source_, last_tool_source_);
 }
 
 void SweepingControllerNode::publishStatus(

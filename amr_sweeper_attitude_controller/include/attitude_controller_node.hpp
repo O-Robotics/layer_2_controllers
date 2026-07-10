@@ -112,6 +112,7 @@ private:
   void configureImuInputs();
   void onImuMessage(sensor_msgs::msg::Imu::SharedPtr msg, std::size_t index);
   void onTimer();
+  void publishLatestAttitudeDiagnostics();
 
   bool transformMeasurementToBaseLink(
     const sensor_msgs::msg::Imu & msg,
@@ -153,6 +154,7 @@ private:
   double imu_startup_grace_sec_{3.0};
   bool imu_timeout_stop_enabled_{true};
   double publish_rate_hz_{50.0};
+  double status_publish_rate_hz_{2.0};
   double initial_roll_deg_{0.0};
   double initial_pitch_deg_{4.5};
   double base_link_origin_z_m_{0.13};
@@ -166,6 +168,7 @@ private:
   StopSupervisor stop_supervisor_;
   AttitudeEstimate last_estimate_;
   AttitudeEstimate last_transform_estimate_;
+  std::size_t last_healthy_imu_count_{0};
   bool last_stop_request_active_{false};
   std::string last_stop_reason_;
 
@@ -180,6 +183,7 @@ private:
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr enable_safety_service_;
 
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::TimerBase::SharedPtr diagnostics_timer_;
   rclcpp::Time startup_time_{0, 0, RCL_ROS_TIME};
   tf2_ros::Buffer tf_buffer_;
   tf2_ros::TransformListener tf_listener_;

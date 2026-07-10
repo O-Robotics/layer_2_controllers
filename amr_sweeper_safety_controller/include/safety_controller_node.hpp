@@ -122,6 +122,7 @@ private:
   bool direct_motor_stop_confirmation_timeout_reported_{false};
 
   double publish_rate_hz_{20.0};
+  double status_publish_rate_hz_{2.0};
   std::string stop_topic_name_{"safety_msgs/stop"};
   std::string wheel_stop_topic_{"safety_controller/cmd_vel_safety_stop"};
   bool mission_stop_enabled_{true};
@@ -188,6 +189,7 @@ private:
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr clear_safety_stop_service_;
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr enable_controller_service_;
   rclcpp::TimerBase::SharedPtr publish_timer_;
+  rclcpp::TimerBase::SharedPtr status_timer_;
 };
 
 }  // namespace amr_sweeper_safety_controller

@@ -37,6 +37,7 @@ private:
   void loadParameters();
   void createSubscriptions();
   void publishSelectedCommands();
+  void publishLatestStatus();
   void publishStatus(const std::string & wheel_source, const std::string & tool_source) const;
   void handleWheelJoystickCommand(const geometry_msgs::msg::Twist::SharedPtr message);
   void handleWheelNavigationCommand(const geometry_msgs::msg::Twist::SharedPtr message);
@@ -55,10 +56,13 @@ private:
   [[nodiscard]] bool hasActiveToolSource(const rclcpp::Time & now) const;
 
   double publish_rate_hz_{20.0};
+  double status_publish_rate_hz_{2.0};
   std::string wheel_output_topic_{"sweeping_controller/cmd_vel_drive"};
   std::string tool_output_topic_{"sweeping_controller/cmd_vel_tools"};
   std::string status_topic_{"sweeping_controller/status"};
   bool publish_idle_commands_{false};
+  std::string last_wheel_source_{"idle"};
+  std::string last_tool_source_{"idle"};
 
   CommandSourceState wheel_safety_source_;
   CommandSourceState wheel_joystick_source_;
@@ -86,6 +90,7 @@ private:
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr tool_command_publisher_;
   rclcpp::Publisher<std_msgs::msg::String>::SharedPtr status_publisher_;
   rclcpp::TimerBase::SharedPtr publish_timer_;
+  rclcpp::TimerBase::SharedPtr status_timer_;
 };
 
 }  // namespace amr_sweeper_sweeping_controller

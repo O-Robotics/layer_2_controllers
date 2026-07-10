@@ -3,6 +3,7 @@
     # -- Base Link Attitude ----------------------------------------------------
     attitude_estimation_enabled:                       true                     # Enable roll/pitch estimation for the chassis attitude transform.
     attitude_estimation.publish_rate_hz:               50.0                     # Base-link attitude estimation and TF publish rate in Hz.
+    attitude_estimation.status_publish_rate_hz:        2.0                      # Heartbeat rate for attitude_controller/status; decoupled from publish_rate_hz.
     attitude_estimation.parent_frame:                  base_footprint           # Parent frame for the dynamic chassis attitude transform.
     attitude_estimation.child_frame:                   base_link                # Child frame for the dynamic chassis attitude transform.
     attitude_estimation.publish_tf:                    true                     # Publish the dynamic base_footprint->base_link TF directly.

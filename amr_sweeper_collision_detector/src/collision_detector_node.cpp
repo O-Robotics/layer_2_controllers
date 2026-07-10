@@ -138,6 +138,8 @@ CollisionDetectorNode::CollisionDetectorNode(const rclcpp::NodeOptions & options
   loadParameters();
   configureImuInputs();
   configureMotorForceInputs();
+  last_imu_health_.resize(imu_inputs_.size());
+  last_motor_health_.resize(motor_force_inputs_.size());
 
   impact_state_publisher_ = create_publisher<std_msgs::msg::Bool>(
     impact_state_topic_, rclcpp::SystemDefaultsQoS());
@@ -162,6 +164,11 @@ CollisionDetectorNode::CollisionDetectorNode(const rclcpp::NodeOptions & options
     std::chrono::duration_cast<std::chrono::nanoseconds>(timer_period),
     std::bind(&CollisionDetectorNode::onTimer, this));
 
+  const auto diagnostics_period = std::chrono::duration<double>(1.0 / status_publish_rate_hz_);
+  diagnostics_timer_ = create_wall_timer(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(diagnostics_period),
+    std::bind(&CollisionDetectorNode::publishLatestDiagnostics, this));
+
   RCLCPP_INFO(
     get_logger(),
     "Collision detector configured with %zu enabled IMU inputs and %zu enabled motor-force inputs",
@@ -178,6 +185,11 @@ void CollisionDetectorNode::loadParameters()
   if (publish_rate_hz_ <= 0.0) {
     RCLCPP_WARN(get_logger(), "publish_rate_hz must be positive; using 20.0 Hz");
     publish_rate_hz_ = 20.0;
+  }
+  status_publish_rate_hz_ = declare_parameter("status_publish_rate_hz", 2.0);
+  if (status_publish_rate_hz_ <= 0.0) {
+    RCLCPP_WARN(get_logger(), "status_publish_rate_hz must be positive; using 2.0 Hz");
+    status_publish_rate_hz_ = 2.0;
   }
 
   impact_state_topic_ = declare_parameter(
@@ -360,8 +372,25 @@ void CollisionDetectorNode::onTimer()
   const bool reported_impact = impact_latched_ || (!latch_collision_ && impact_detected);
   const std::string reported_reason = reported_impact ? latched_impact_reason_ : impact_reason;
   publishImpactState(reported_impact, reported_reason);
+
+  // Cache for the independent, lower-rate diagnostics timer; impact_state stays on this
+  // full-rate detection loop since it is the real-time safety signal.
+  last_imu_health_ = imu_health;
+  last_motor_health_ = motor_health;
+  last_healthy_imu_count_ = healthy_imu_count;
+  last_reported_impact_ = reported_impact;
+  last_reported_reason_ = reported_reason;
+}
+
+void CollisionDetectorNode::publishLatestDiagnostics()
+{
   publishDiagnostics(
-    stamp, imu_health, motor_health, healthy_imu_count, reported_impact, reported_reason);
+    now(),
+    last_imu_health_,
+    last_motor_health_,
+    last_healthy_imu_count_,
+    last_reported_impact_,
+    last_reported_reason_);
 }
 
 void CollisionDetectorNode::publishDiagnostics(

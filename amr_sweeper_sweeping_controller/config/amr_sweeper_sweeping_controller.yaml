@@ -2,6 +2,7 @@
   ros__parameters:
     # -- Controller outputs ---------------------------------------------------
     publish_rate_hz:                                             20.0                            # Command arbitration and output publish rate in hertz.
+    status_publish_rate_hz:                                      2.0                             # Heartbeat rate for status_topic; decoupled from publish_rate_hz so slowing it down never delays wheel/tool commands.
     publish_idle_commands:                                       false                           # Keep outputs silent until at least one real source is active; set true to continuously publish zero commands while idle.
     wheel_output_topic:                                          sweeping_controller/cmd_vel_drive  # Wheel command topic forwarded downstream to the wheel controller.
     tool_output_topic:                                           sweeping_controller/cmd_vel_tools  # Tool command topic forwarded downstream to the tool controller.

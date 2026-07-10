@@ -61,6 +61,7 @@ private:
   void onImuMessage(sensor_msgs::msg::Imu::SharedPtr msg, std::size_t index);
   void onMotorForceMessage(sensor_msgs::msg::JointState::SharedPtr msg, std::size_t index);
   void onTimer();
+  void publishLatestDiagnostics();
 
   void publishDiagnostics(
     const rclcpp::Time & stamp,
@@ -81,6 +82,7 @@ private:
   bool latch_collision_{true};
   bool publish_stop_request_{true};
   double publish_rate_hz_{20.0};
+  double status_publish_rate_hz_{2.0};
   double imu_timeout_warning_sec_{0.3};
   double imu_timeout_error_sec_{1.0};
   double motor_timeout_warning_sec_{0.5};
@@ -102,6 +104,12 @@ private:
   bool last_reported_impact_state_{false};
   std::string latched_impact_reason_{"no impact detected"};
 
+  std::vector<SourceHealth> last_imu_health_;
+  std::vector<SourceHealth> last_motor_health_;
+  std::size_t last_healthy_imu_count_{0};
+  bool last_reported_impact_{false};
+  std::string last_reported_reason_{"no impact detected"};
+
   rclcpp::Publisher<std_msgs::msg::Bool>::SharedPtr impact_state_publisher_;
   rclcpp::Publisher<amr_sweeper_safety_msgs::msg::SafetyStop>::SharedPtr stop_request_publisher_;
   rclcpp::Publisher<diagnostic_msgs::msg::DiagnosticArray>::SharedPtr diagnostics_publisher_;
@@ -109,6 +117,7 @@ private:
   rclcpp::Service<std_srvs::srv::Trigger>::SharedPtr reset_impact_latch_service_;
   rclcpp::Service<std_srvs::srv::SetBool>::SharedPtr enable_detector_service_;
   rclcpp::TimerBase::SharedPtr timer_;
+  rclcpp::TimerBase::SharedPtr diagnostics_timer_;
 };
 
 SourceHealth evaluateImuHealth(

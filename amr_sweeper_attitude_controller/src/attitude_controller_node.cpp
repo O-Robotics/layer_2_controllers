@@ -386,6 +386,11 @@ AttitudeControllerNode::AttitudeControllerNode(const rclcpp::NodeOptions & optio
   timer_ = create_wall_timer(
     std::chrono::duration_cast<std::chrono::nanoseconds>(timer_period),
     std::bind(&AttitudeControllerNode::onTimer, this));
+
+  const auto diagnostics_period = std::chrono::duration<double>(1.0 / status_publish_rate_hz_);
+  diagnostics_timer_ = create_wall_timer(
+    std::chrono::duration_cast<std::chrono::nanoseconds>(diagnostics_period),
+    std::bind(&AttitudeControllerNode::publishLatestAttitudeDiagnostics, this));
 }
 
 void AttitudeControllerNode::loadParameters()
@@ -417,6 +422,8 @@ void AttitudeControllerNode::loadParameters()
   imu_timeout_stop_enabled_ =
     declare_parameter("attitude_estimation.imu_timeout_stop_enabled", true);
   publish_rate_hz_ = declare_parameter("attitude_estimation.publish_rate_hz", 50.0);
+  status_publish_rate_hz_ =
+    declare_parameter("attitude_estimation.status_publish_rate_hz", 2.0);
   hold_last_transform_when_unhealthy_ =
     declare_parameter("attitude_estimation.hold_last_transform", true);
   initial_roll_deg_ = declare_parameter("attitude_estimation.initial_roll_deg", 0.0);
@@ -438,6 +445,10 @@ void AttitudeControllerNode::loadParameters()
   if (publish_rate_hz_ <= 0.0) {
     RCLCPP_WARN(get_logger(), "publish_rate_hz must be positive; using 50.0 Hz");
     publish_rate_hz_ = 50.0;
+  }
+  if (status_publish_rate_hz_ <= 0.0) {
+    RCLCPP_WARN(get_logger(), "status_publish_rate_hz must be positive; using 2.0 Hz");
+    status_publish_rate_hz_ = 2.0;
   }
   if (imu_timeout_warning_sec_ <= 0.0) {
     RCLCPP_WARN(get_logger(), "imu_timeout_warning_sec must be positive; using 0.3 s");
@@ -613,6 +624,7 @@ void AttitudeControllerNode::onTimer()
     measurements.push_back(measurement);
     ++healthy_imu_count;
   }
+  last_healthy_imu_count_ = healthy_imu_count;
 
   if (attitude_estimation_enabled_) {
     last_estimate_ = AttitudeEstimate();
@@ -624,7 +636,6 @@ void AttitudeControllerNode::onTimer()
       last_estimate_.healthy = true;
     }
     publishAttitude(stamp, last_estimate_);
-    publishAttitudeDiagnostics(stamp, last_estimate_, healthy_imu_count);
 
     if (publish_base_link_tf_) {
       if (last_estimate_.healthy || !hold_last_transform_when_unhealthy_) {
@@ -640,9 +651,7 @@ void AttitudeControllerNode::onTimer()
       tool_link_warning_logged_ = true;
     }
   } else {
-    AttitudeEstimate disabled_estimate;
-    disabled_estimate.healthy = false;
-    publishAttitudeDiagnostics(stamp, disabled_estimate, healthy_imu_count);
+    last_estimate_ = AttitudeEstimate();
   }
 
   StopSupervisorState safety_state;
@@ -657,6 +666,15 @@ void AttitudeControllerNode::onTimer()
   }
 
   publishSafety(stamp, safety_state);
+}
+
+void AttitudeControllerNode::publishLatestAttitudeDiagnostics()
+{
+  const auto stamp = now();
+  if (isZeroTime(stamp)) {
+    return;
+  }
+  publishAttitudeDiagnostics(stamp, last_estimate_, last_healthy_imu_count_);
 }
 
 void AttitudeControllerNode::publishAttitude(
