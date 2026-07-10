@@ -24,6 +24,7 @@
     steadydrive_motor_can_ids:                             # CAN IDs for the Steadydrive tool motors.
       - "0x141"
       - "0x142"
+    external_can_stop_monitor_enabled:   true              # Latch a safety stop if any other CAN node (e.g. the button module) sends an ODrive e-stop or Steadydrive stop/off command straight to the motors, bypassing this controller.
     button_can_monitor_enabled:          true              # Listen for CAN frames from the physical stop-button module and latch a safety stop on press.
     button_can_interface:                can0              # SocketCAN interface used to receive button-module frames.
     button_can_base_id:                  0x200             # Tunable button module base CAN ID; firmware emits events on base_id and status on base_id + 1.

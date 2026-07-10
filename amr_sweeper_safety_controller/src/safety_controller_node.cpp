@@ -268,6 +268,8 @@ void SafetyControllerNode::loadParameters()
         steadydrive_motor_id_values[index],
         "steadydrive_motor_can_ids[" + std::to_string(index) + "]"));
   }
+  external_can_stop_monitor_enabled_ =
+    declare_parameter("external_can_stop_monitor_enabled", true);
   button_can_monitor_enabled_ = declare_parameter("button_can_monitor_enabled", true);
   button_can_interface_ = declare_parameter("button_can_interface", std::string("can0"));
   button_can_base_id_ = static_cast<uint32_t>(declare_parameter("button_can_base_id", 0x200));
@@ -313,6 +315,7 @@ void SafetyControllerNode::loadParameters()
     odrive_feedback_can_state_.accepted_can_ids.push_back((node_id << 5U) | kOdriveHeartbeatCommandId);
     odrive_feedback_can_state_.accepted_can_ids.push_back(
       (node_id << 5U) | kOdriveGetEncoderEstimatesCommandId);
+    odrive_feedback_can_state_.accepted_can_ids.push_back((node_id << 5U) | kOdriveEstopCommandId);
   }
   for (const auto can_id : steadydrive_motor_can_ids_) {
     steadydrive_feedback_can_state_.accepted_can_ids.push_back(can_id & CAN_SFF_MASK);
@@ -1192,6 +1195,17 @@ bool SafetyControllerNode::parseButtonCanFrame(uint32_t can_id, const std::vecto
   return false;
 }
 
+void SafetyControllerNode::latchExternalCanStopObserved(
+  const std::string & sender,
+  const std::string & reason)
+{
+  amr_sweeper_safety_msgs::msg::SafetyStop stop_msg;
+  stop_msg.stamp = toBuiltinTime(now());
+  stop_msg.sender = sender;
+  stop_msg.reason = reason;
+  publishInternalStopEvent(stop_msg);
+}
+
 bool SafetyControllerNode::parseOdriveCanFrame(
   const uint32_t can_id,
   const std::vector<uint8_t> & payload)
@@ -1223,6 +1237,16 @@ bool SafetyControllerNode::parseOdriveCanFrame(
     return true;
   }
 
+  if (command_id == kOdriveEstopCommandId) {
+    if (external_can_stop_monitor_enabled_) {
+      std::ostringstream reason;
+      reason << "ODrive e-stop command (cmd_id 0x02) observed on CAN bus for node " << node_id
+             << " from a source other than this safety controller";
+      latchExternalCanStopObserved("odrive_can_bus_estop_observed", reason.str());
+    }
+    return true;
+  }
+
   return false;
 }
 
@@ -1236,7 +1260,21 @@ bool SafetyControllerNode::parseSteadydriveCanFrame(
     [can_id](const SteadydriveFeedbackState & state) {
       return state.can_id == can_id;
     });
-  if (state_it == steadydrive_feedback_states_.end() || payload.size() < 8U) {
+  if (state_it == steadydrive_feedback_states_.end() || payload.empty()) {
+    return false;
+  }
+
+  if (payload[0] == kSteadydriveMotorStopCommand || payload[0] == kSteadydriveMotorOffCommand) {
+    if (external_can_stop_monitor_enabled_) {
+      std::ostringstream reason;
+      reason << "Steadydrive stop/off command observed on CAN bus for motor "
+             << formatCanIdHex(can_id) << " from a source other than this safety controller";
+      latchExternalCanStopObserved("steadydrive_can_bus_stop_observed", reason.str());
+    }
+    return true;
+  }
+
+  if (payload.size() < 8U) {
     return false;
   }
 

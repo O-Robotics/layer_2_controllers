@@ -37,6 +37,7 @@ This package latches shared stop requests and forces the AMR Sweeper to a stop f
 - Sends Steadydrive stop (`0x81`) and motor-off (`0x80`) frames directly to the configured tool-motor CAN IDs while the stop is latched.
 - Requests Steadydrive motor state 2 (`0x9C`) and verifies each tool motor reaches the configured stopped-speed threshold while the stop is latched.
 - Monitors the configured button-module CAN base ID from the YAML config and latches a stop when it receives either the button event frame (`data[0] = 0x01` on `base_id`) or a status frame with pressed bits set (`data[1] & 0x11` on `base_id + 1`).
+- Also watches the ODrive and Steadydrive CAN IDs for e-stop/stop/off commands (ODrive `cmd_id 0x02`, Steadydrive `0x81`/`0x80`) that this controller did not itself send, and latches a safety stop when one is observed. This catches the button module's own direct-to-motor e-stop wiring even if its `base_id`/`base_id + 1` report to this controller is missed, dropped, or too short-lived to be seen (`external_can_stop_monitor_enabled`).
 - Watches the button status heartbeat on `base_id + 1` and latches a safety stop if that heartbeat disappears past the configured YAML timeout.
 - Publishes internally generated stops such as button-module events, button heartbeat loss, and the node watchdog into `safety_msgs/stop` as well so Layer 0 schedule logging records them too.
 - Runs an internal watchdog thread that publishes a safety stop and sends direct motor-stop commands if the node stops making progress for the configured timeout.

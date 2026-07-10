@@ -100,6 +100,7 @@ private:
   bool parseButtonCanFrame(uint32_t can_id, const std::vector<uint8_t> & payload);
   bool parseOdriveCanFrame(uint32_t can_id, const std::vector<uint8_t> & payload);
   bool parseSteadydriveCanFrame(uint32_t can_id, const std::vector<uint8_t> & payload);
+  void latchExternalCanStopObserved(const std::string & sender, const std::string & reason);
   bool clearHardwareSafetyStops(std::string & failure_message);
   std::string buildWebStatusJson() const;
 
@@ -131,6 +132,7 @@ private:
   bool steadydrive_direct_can_stop_enabled_{true};
   std::string steadydrive_can_interface_{"can0"};
   std::vector<uint32_t> steadydrive_motor_can_ids_{0x141U, 0x142U};
+  bool external_can_stop_monitor_enabled_{true};
   bool button_can_monitor_enabled_{true};
   std::string button_can_interface_{"can0"};
   uint32_t button_can_base_id_{0x200U};
