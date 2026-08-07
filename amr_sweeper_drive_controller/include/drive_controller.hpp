@@ -89,9 +89,12 @@ private:
   double wheel_separation_multiplier_{1.15};
   double command_timeout_sec_{0.5};
   double direct_command_timeout_sec_{0.5};
+  double max_linear_velocity_{1.0};
+  double max_angular_velocity_{1.57};
   double publish_rate_{10.0};
   bool position_feedback_{false};
   bool enable_odom_tf_{false};
+  bool speed_limit_enabled_{true};
 
   mutable std::mutex command_mutex_;
   TwistCommand latest_twist_command_;

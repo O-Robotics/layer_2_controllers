@@ -16,6 +16,14 @@ namespace amr_sweeper_drive_controller
 namespace
 {
 
+double clampSymmetric(double value, double limit)
+{
+  if (limit <= 0.0) {
+    return value;
+  }
+  return std::clamp(value, -limit, limit);
+}
+
 double yawToQuaternionZ(double yaw)
 {
   return std::sin(yaw * 0.5);
@@ -46,6 +54,9 @@ controller_interface::CallbackReturn DriveController::on_init()
   node->declare_parameter("wheel_separation_multiplier", wheel_separation_multiplier_);
   node->declare_parameter("command_timeout_sec", command_timeout_sec_);
   node->declare_parameter("direct_command_timeout_sec", direct_command_timeout_sec_);
+  node->declare_parameter("speed_limit_enabled", speed_limit_enabled_);
+  node->declare_parameter("max_linear_velocity", max_linear_velocity_);
+  node->declare_parameter("max_angular_velocity", max_angular_velocity_);
   node->declare_parameter("publish_rate", publish_rate_);
   node->declare_parameter("position_feedback", position_feedback_);
   node->declare_parameter("enable_odom_tf", enable_odom_tf_);
@@ -100,6 +111,9 @@ controller_interface::CallbackReturn DriveController::on_configure(
   command_timeout_sec_ = node->get_parameter("command_timeout_sec").as_double();
   direct_command_timeout_sec_ =
     node->get_parameter("direct_command_timeout_sec").as_double();
+  speed_limit_enabled_ = node->get_parameter("speed_limit_enabled").as_bool();
+  max_linear_velocity_ = node->get_parameter("max_linear_velocity").as_double();
+  max_angular_velocity_ = node->get_parameter("max_angular_velocity").as_double();
   publish_rate_ = node->get_parameter("publish_rate").as_double();
   position_feedback_ = node->get_parameter("position_feedback").as_bool();
   enable_odom_tf_ = node->get_parameter("enable_odom_tf").as_bool();
@@ -124,6 +138,16 @@ controller_interface::CallbackReturn DriveController::on_configure(
       "Drive-controller timeouts must be non-negative and publish_rate must be positive.");
     return controller_interface::CallbackReturn::ERROR;
   }
+  if (max_linear_velocity_ < 0.0 || max_angular_velocity_ < 0.0) {
+    RCLCPP_ERROR(node->get_logger(), "Drive-controller speed limits must be non-negative.");
+    return controller_interface::CallbackReturn::ERROR;
+  }
+  RCLCPP_INFO(
+    node->get_logger(),
+    "Drive-controller speed limit: enabled=%s, max_linear=%.3f m/s, max_angular=%.3f rad/s",
+    speed_limit_enabled_ ? "true" : "false",
+    max_linear_velocity_,
+    max_angular_velocity_);
 
   resetCommandState();
   resetOdometryState();
@@ -233,8 +257,47 @@ controller_interface::return_type DriveController::update(
     linear_command - (angular_command * effective_wheel_separation * 0.5);
   const double right_linear_velocity =
     linear_command + (angular_command * effective_wheel_separation * 0.5);
-  const double left_wheel_velocity = left_linear_velocity / left_wheel_radius;
-  const double right_wheel_velocity = right_linear_velocity / right_wheel_radius;
+  double left_wheel_velocity = left_linear_velocity / left_wheel_radius;
+  double right_wheel_velocity = right_linear_velocity / right_wheel_radius;
+
+  if (speed_limit_enabled_) {
+    const double original_linear_command = linear_command;
+    const double original_angular_command = angular_command;
+    const double original_left_wheel_velocity = left_wheel_velocity;
+    const double original_right_wheel_velocity = right_wheel_velocity;
+
+    linear_command = clampSymmetric(linear_command, max_linear_velocity_);
+    angular_command = clampSymmetric(angular_command, max_angular_velocity_);
+
+    const double limited_left_linear_velocity =
+      linear_command - (angular_command * effective_wheel_separation * 0.5);
+    const double limited_right_linear_velocity =
+      linear_command + (angular_command * effective_wheel_separation * 0.5);
+    left_wheel_velocity = limited_left_linear_velocity / left_wheel_radius;
+    right_wheel_velocity = limited_right_linear_velocity / right_wheel_radius;
+
+    if (
+      original_linear_command != linear_command ||
+      original_angular_command != angular_command ||
+      original_left_wheel_velocity != left_wheel_velocity ||
+      original_right_wheel_velocity != right_wheel_velocity)
+    {
+      RCLCPP_WARN_THROTTLE(
+        get_node()->get_logger(),
+        *get_node()->get_clock(),
+        2000,
+        "Drive speed clamp active: cmd linear %.3f->%.3f angular %.3f->%.3f, "
+        "resulting wheels left %.3f->%.3f right %.3f->%.3f rad/s",
+        original_linear_command,
+        linear_command,
+        original_angular_command,
+        angular_command,
+        original_left_wheel_velocity,
+        left_wheel_velocity,
+        original_right_wheel_velocity,
+        right_wheel_velocity);
+    }
+  }
 
   const bool left_ok = command_interfaces_[0].set_value(left_wheel_velocity);
   const bool right_ok = command_interfaces_[1].set_value(right_wheel_velocity);

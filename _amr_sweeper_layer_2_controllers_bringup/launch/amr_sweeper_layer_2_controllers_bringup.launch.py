@@ -41,12 +41,8 @@ def _launch_setup(context, *args, **kwargs):
     use_joy_node = LaunchConfiguration("use_joy_node").perform(context)
     joy_dev = LaunchConfiguration("joy_dev").perform(context)
     use_sweeping_mode = LaunchConfiguration("use_sweeping_mode").perform(context)
-    ros2_control_config_file = PathJoinSubstitution([
-        FindPackageShare("amr_sweeper_description"),
-        "urdf",
-        "control",
-        "ros2_control.yaml",
-    ])
+    ros2_control_config_file = LaunchConfiguration("ros2_control_config_file")
+    drive_controller_config_file = LaunchConfiguration("drive_controller_config_file")
 
     actions = []
     controller_dependent_actions = []
@@ -116,6 +112,8 @@ def _launch_setup(context, *args, **kwargs):
                 "60",
                 "--param-file",
                 ros2_control_config_file,
+                "--param-file",
+                drive_controller_config_file,
                 "--controller-ros-args",
                 "--remap /tf:=drive_controller_disabled_tf",
             ],
@@ -201,5 +199,22 @@ def generate_launch_description():
         DeclareLaunchArgument("use_joy_node", default_value="false"),
         DeclareLaunchArgument("joy_dev", default_value="/dev/input/js0"),
         DeclareLaunchArgument("use_sweeping_mode", default_value="cmd_vel_sweeping"),
+        DeclareLaunchArgument(
+            "ros2_control_config_file",
+            default_value=PathJoinSubstitution([
+                FindPackageShare("amr_sweeper_description"),
+                "urdf",
+                "control",
+                "ros2_control.yaml",
+            ]),
+        ),
+        DeclareLaunchArgument(
+            "drive_controller_config_file",
+            default_value=PathJoinSubstitution([
+                FindPackageShare("amr_sweeper_drive_controller"),
+                "config",
+                "amr_sweeper_drive_controller.yaml",
+            ]),
+        ),
         OpaqueFunction(function=_launch_setup),
     ])

@@ -18,3 +18,6 @@
     publish_rate: 10.0                                    # Wheel odometry publish rate in hertz.
     command_timeout_sec: 0.5                              # Zero wheel commands if no fresh sweep-wheel twist arrives within this window.
     direct_command_timeout_sec: 0.5                       # Give the direct safety-stop wheel topic precedence while its zero command remains fresh.
+    speed_limit_enabled: true                             # Hard clamp all drive commands before conversion to wheel velocities.
+    max_linear_velocity: 1.0                              # Hard forward/reverse command ceiling in m/s.
+    max_angular_velocity: 1.57                            # Hard yaw-rate command ceiling in rad/s.
