@@ -427,6 +427,7 @@ void SafetyControllerNode::latchStop(
     normalized_event.stamp = toBuiltinTime(now());
   }
 
+  const bool was_latched = latched_stop_active_;
   const bool same_as_active =
     latched_stop_active_ &&
     active_stop_event_.sender == normalized_event.sender &&
@@ -438,18 +439,21 @@ void SafetyControllerNode::latchStop(
       return existing_event.sender == normalized_event.sender &&
              existing_event.reason == normalized_event.reason;
     });
-  if (!already_recorded) {
+  const bool new_cause = !already_recorded;
+  if (new_cause) {
     latched_stop_events_.push_back(normalized_event);
   }
 
-  active_stop_event_ = normalized_event;
+  if (!was_latched || new_cause) {
+    active_stop_event_ = normalized_event;
+  }
   latched_stop_active_ = true;
-  latched_stop_since_ = now();
-  direct_motor_stop_confirmed_ = false;
-  direct_motor_stop_confirmation_timeout_reported_ = false;
-  direct_motor_stop_confirmation_status_ = "awaiting_feedback";
-  internal_watchdog_stop_published_.store(false);
-  if (!same_as_active) {
+  if (!was_latched) {
+    latched_stop_since_ = now();
+    direct_motor_stop_confirmed_ = false;
+    direct_motor_stop_confirmation_timeout_reported_ = false;
+    direct_motor_stop_confirmation_status_ = "awaiting_feedback";
+    internal_watchdog_stop_published_.store(false);
     mission_stop_requested_ = false;
     fsm_fault_requested_ = false;
     mission_stop_placeholder_logged_ = false;
@@ -458,6 +462,12 @@ void SafetyControllerNode::latchStop(
     RCLCPP_ERROR(
       get_logger(),
       "Latched safety stop from '%s': %s",
+      active_stop_event_.sender.c_str(),
+      active_stop_event_.reason.c_str());
+  } else if (new_cause && !same_as_active) {
+    RCLCPP_WARN(
+      get_logger(),
+      "Additional safety stop cause while already latched from '%s': %s",
       active_stop_event_.sender.c_str(),
       active_stop_event_.reason.c_str());
   }
