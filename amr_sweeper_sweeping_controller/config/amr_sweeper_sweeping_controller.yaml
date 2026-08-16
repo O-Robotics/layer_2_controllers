@@ -7,34 +7,34 @@
     wheel_output_topic:                                          sweeping_controller/cmd_vel_drive  # Wheel command topic forwarded downstream to the wheel controller.
     tool_output_topic:                                           sweeping_controller/cmd_vel_tools  # Tool command topic forwarded downstream to the tool controller.
     status_topic:                                                sweeping_controller/status      # Status topic describing the active wheel and tool command sources.
-      
+
     # -- Wheel command sources ------------------------------------------------
     wheel_sources.safety_stop.enabled:                           true                            # Enable the wheel safety-stop input path.
     wheel_sources.safety_stop.topic:                             safety_controller/cmd_vel_safety_stop  # Highest-priority wheel stop topic injected by the independent safety controller.
     wheel_sources.safety_stop.timeout_seconds:                   0.5                             # Hold the wheel safety-stop command active while fresh.
     wheel_sources.safety_stop.priority:                          255                             # Highest wheel command priority so a safety stop overrides all other motion sources.
-              
+
     wheel_sources.joystick.enabled:                              true                            # Enable the wheel joystick override input path.
     wheel_sources.joystick.topic:                                teleop/cmd_vel_drive  # Raw teleop wheel command topic published by the teleop stack.
     wheel_sources.joystick.timeout_seconds:                      1.0                             # Hold joystick wheel override for 1 second before handing back to navigation.
     wheel_sources.joystick.priority:                             100                             # Wheel joystick priority above navigation and below safety stop.
-              
+
     wheel_sources.navigation.enabled:                            true                            # Enable the Nav2 wheel motion input path.
     wheel_sources.navigation.topic:                              navigation/cmd_vel              # Nav2 wheel motion topic consumed when no higher-priority override is active.
     wheel_sources.navigation.timeout_seconds:                    0.5                             # Navigation command freshness window in seconds.
     wheel_sources.navigation.priority:                           5                               # Wheel navigation priority below safety stop and joystick override.
-              
+
     # -- Tool command sources -------------------------------------------------
     tool_sources.safety_stop.enabled:                            true                            # Enable the tool safety-stop input path.
     tool_sources.safety_stop.topic:                              safety_controller/cmd_vel_safety_stop  # Highest-priority tool stop topic injected by the independent safety controller.
     tool_sources.safety_stop.timeout_seconds:                    0.5                             # Hold the tool safety-stop command active while fresh.
     tool_sources.safety_stop.priority:                           255                             # Highest tool command priority so a safety stop overrides all other tool sources.
-              
+
     tool_sources.joystick.enabled:                               true                            # Enable the tool joystick command input path.
     tool_sources.joystick.topic:                                 teleop/cmd_vel_tools  # Raw teleop tool command topic published by the teleop stack.
     tool_sources.joystick.timeout_seconds:                       1.0                             # Tool joystick freshness window in seconds.
     tool_sources.joystick.priority:                              100                             # Tool joystick priority below safety stop.
-              
+
     tool_sources.navigation.enabled:                             true                            # Enable derived autonomous tool motion from the Nav2 wheel command input.
     tool_sources.navigation.topic:                               navigation/cmd_vel              # Reference navigation topic name documented alongside the derived tool motion path.
     tool_sources.navigation.timeout_seconds:                     0.5                             # Derived autonomous tool command freshness window in seconds.
