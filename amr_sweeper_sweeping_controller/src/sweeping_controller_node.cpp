@@ -150,6 +150,9 @@ void SweepingControllerNode::loadParameters()
   web_teleop_control_mode_topic_ = declare_parameter(
     "web_teleop.control_mode_topic",
     std::string{"teleop/control_mode"});
+  web_teleop_wheel_scale_topic_ = declare_parameter(
+    "web_teleop.wheel_scale_topic",
+    std::string{"teleop/wheel_scale"});
   web_teleop_tool_scale_topic_ = declare_parameter(
     "web_teleop.tool_scale_topic",
     std::string{"teleop/tool_scale"});
@@ -188,6 +191,10 @@ void SweepingControllerNode::createSubscriptions()
     web_teleop_control_mode_topic_,
     rclcpp::SystemDefaultsQoS(),
     std::bind(&SweepingControllerNode::handleWebTeleopControlMode, this, std::placeholders::_1));
+  web_teleop_wheel_scale_subscription_ = create_subscription<std_msgs::msg::Float32>(
+    web_teleop_wheel_scale_topic_,
+    rclcpp::SystemDefaultsQoS(),
+    std::bind(&SweepingControllerNode::handleWebTeleopWheelScale, this, std::placeholders::_1));
   web_teleop_tool_scale_subscription_ = create_subscription<std_msgs::msg::Float32>(
     web_teleop_tool_scale_topic_,
     rclcpp::SystemDefaultsQoS(),
@@ -236,10 +243,11 @@ void SweepingControllerNode::handleWheelJoystickCommand(
   if (!message) {
     return;
   }
-  storeCommand(wheel_joystick_source_, *message);
-  if (webTeleopOneStickActive(now()) && tool_navigation_source_.config.enabled &&
-    tool_navigation_mapping_enabled_)
-  {
+  const bool one_stick_active = webTeleopOneStickActive(now());
+  storeCommand(
+    wheel_joystick_source_,
+    one_stick_active ? scaledTwist(*message, web_teleop_wheel_scale_) : *message);
+  if (one_stick_active && tool_navigation_source_.config.enabled && tool_navigation_mapping_enabled_) {
     storeCommand(
       tool_navigation_source_,
       scaledTwist(buildToolNavigationCommand(*message), web_teleop_tool_scale_));
@@ -288,6 +296,15 @@ void SweepingControllerNode::handleWebTeleopControlMode(
   web_teleop_control_mode_ = message->data == "one_stick" ? "one_stick" : "two_stick";
   web_teleop_control_mode_last_received_ = now();
   web_teleop_control_mode_has_message_ = true;
+}
+
+void SweepingControllerNode::handleWebTeleopWheelScale(
+  const std_msgs::msg::Float32::SharedPtr message)
+{
+  if (!message) {
+    return;
+  }
+  web_teleop_wheel_scale_ = std::clamp(static_cast<double>(message->data), 0.0, 1.0);
 }
 
 void SweepingControllerNode::handleWebTeleopToolScale(

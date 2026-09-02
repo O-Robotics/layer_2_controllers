@@ -45,6 +45,7 @@ private:
   void handleToolJoystickCommand(const geometry_msgs::msg::Twist::SharedPtr message);
   void handleSafetyStopCommand(const geometry_msgs::msg::Twist::SharedPtr message);
   void handleWebTeleopControlMode(const std_msgs::msg::String::SharedPtr message);
+  void handleWebTeleopWheelScale(const std_msgs::msg::Float32::SharedPtr message);
   void handleWebTeleopToolScale(const std_msgs::msg::Float32::SharedPtr message);
   void storeCommand(CommandSourceState & state, const geometry_msgs::msg::Twist & command);
   [[nodiscard]] geometry_msgs::msg::Twist buildToolNavigationCommand(
@@ -89,11 +90,13 @@ private:
   double tool_navigation_constant_linear_x_{0.0};
   double tool_navigation_constant_angular_z_{0.0};
   std::string web_teleop_control_mode_topic_{"teleop/control_mode"};
+  std::string web_teleop_wheel_scale_topic_{"teleop/wheel_scale"};
   std::string web_teleop_tool_scale_topic_{"teleop/tool_scale"};
   double web_teleop_signal_timeout_seconds_{1.0};
   std::string web_teleop_control_mode_{"two_stick"};
   rclcpp::Time web_teleop_control_mode_last_received_;
   bool web_teleop_control_mode_has_message_{false};
+  double web_teleop_wheel_scale_{0.5};
   double web_teleop_tool_scale_{0.5};
 
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr wheel_joystick_subscription_;
@@ -101,6 +104,7 @@ private:
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr tool_joystick_subscription_;
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr safety_stop_subscription_;
   rclcpp::Subscription<std_msgs::msg::String>::SharedPtr web_teleop_control_mode_subscription_;
+  rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr web_teleop_wheel_scale_subscription_;
   rclcpp::Subscription<std_msgs::msg::Float32>::SharedPtr web_teleop_tool_scale_subscription_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr wheel_command_publisher_;
   rclcpp::Publisher<geometry_msgs::msg::Twist>::SharedPtr tool_command_publisher_;
