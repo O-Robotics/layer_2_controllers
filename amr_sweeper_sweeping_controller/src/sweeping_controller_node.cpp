@@ -1,5 +1,6 @@
 #include "sweeping_controller_node.hpp"
 
+#include <algorithm>
 #include <functional>
 #include <sstream>
 #include <utility>
@@ -146,6 +147,15 @@ void SweepingControllerNode::loadParameters()
   tool_navigation_constant_angular_z_ = declare_parameter(
     "tool_sources.navigation.constant_angular_z",
     0.0);
+  web_teleop_control_mode_topic_ = declare_parameter(
+    "web_teleop.control_mode_topic",
+    std::string{"teleop/control_mode"});
+  web_teleop_tool_scale_topic_ = declare_parameter(
+    "web_teleop.tool_scale_topic",
+    std::string{"teleop/tool_scale"});
+  web_teleop_signal_timeout_seconds_ = declare_parameter(
+    "web_teleop.signal_timeout_seconds",
+    1.0);
 }
 
 void SweepingControllerNode::createSubscriptions()
@@ -174,6 +184,14 @@ void SweepingControllerNode::createSubscriptions()
       rclcpp::SystemDefaultsQoS(),
       std::bind(&SweepingControllerNode::handleSafetyStopCommand, this, std::placeholders::_1));
   }
+  web_teleop_control_mode_subscription_ = create_subscription<std_msgs::msg::String>(
+    web_teleop_control_mode_topic_,
+    rclcpp::SystemDefaultsQoS(),
+    std::bind(&SweepingControllerNode::handleWebTeleopControlMode, this, std::placeholders::_1));
+  web_teleop_tool_scale_subscription_ = create_subscription<std_msgs::msg::Float32>(
+    web_teleop_tool_scale_topic_,
+    rclcpp::SystemDefaultsQoS(),
+    std::bind(&SweepingControllerNode::handleWebTeleopToolScale, this, std::placeholders::_1));
 }
 
 void SweepingControllerNode::publishSelectedCommands()
@@ -205,6 +223,7 @@ void SweepingControllerNode::publishStatus(
   std::ostringstream stream;
   stream << "wheel_source=" << wheel_source
          << "; tool_source=" << tool_source
+         << "; web_teleop_control_mode=" << web_teleop_control_mode_
          << "; wheel_output_topic=" << wheel_output_topic_
          << "; tool_output_topic=" << tool_output_topic_;
   message.data = stream.str();
@@ -218,6 +237,13 @@ void SweepingControllerNode::handleWheelJoystickCommand(
     return;
   }
   storeCommand(wheel_joystick_source_, *message);
+  if (webTeleopOneStickActive(now()) && tool_navigation_source_.config.enabled &&
+    tool_navigation_mapping_enabled_)
+  {
+    storeCommand(
+      tool_navigation_source_,
+      scaledTwist(buildToolNavigationCommand(*message), web_teleop_tool_scale_));
+  }
 }
 
 void SweepingControllerNode::handleWheelNavigationCommand(
@@ -227,7 +253,9 @@ void SweepingControllerNode::handleWheelNavigationCommand(
     return;
   }
   storeCommand(wheel_navigation_source_, *message);
-  if (tool_navigation_source_.config.enabled && tool_navigation_mapping_enabled_) {
+  if (!webTeleopOneStickActive(now()) && tool_navigation_source_.config.enabled &&
+    tool_navigation_mapping_enabled_)
+  {
     storeCommand(tool_navigation_source_, buildToolNavigationCommand(*message));
   }
 }
@@ -249,6 +277,26 @@ void SweepingControllerNode::handleSafetyStopCommand(
   }
   storeCommand(wheel_safety_source_, *message);
   storeCommand(tool_safety_source_, *message);
+}
+
+void SweepingControllerNode::handleWebTeleopControlMode(
+  const std_msgs::msg::String::SharedPtr message)
+{
+  if (!message) {
+    return;
+  }
+  web_teleop_control_mode_ = message->data == "one_stick" ? "one_stick" : "two_stick";
+  web_teleop_control_mode_last_received_ = now();
+  web_teleop_control_mode_has_message_ = true;
+}
+
+void SweepingControllerNode::handleWebTeleopToolScale(
+  const std_msgs::msg::Float32::SharedPtr message)
+{
+  if (!message) {
+    return;
+  }
+  web_teleop_tool_scale_ = std::clamp(static_cast<double>(message->data), 0.0, 1.0);
 }
 
 void SweepingControllerNode::storeCommand(
@@ -285,6 +333,29 @@ geometry_msgs::msg::Twist SweepingControllerNode::buildConstantToolNavigationCom
   tool_command.linear.x = tool_navigation_constant_linear_x_;
   tool_command.angular.z = tool_navigation_constant_angular_z_;
   return tool_command;
+}
+
+geometry_msgs::msg::Twist SweepingControllerNode::scaledTwist(
+  const geometry_msgs::msg::Twist & command,
+  double scale) const
+{
+  geometry_msgs::msg::Twist scaled_command = command;
+  scaled_command.linear.x *= scale;
+  scaled_command.linear.y *= scale;
+  scaled_command.linear.z *= scale;
+  scaled_command.angular.x *= scale;
+  scaled_command.angular.y *= scale;
+  scaled_command.angular.z *= scale;
+  return scaled_command;
+}
+
+bool SweepingControllerNode::webTeleopOneStickActive(const rclcpp::Time & now) const
+{
+  if (!web_teleop_control_mode_has_message_ || web_teleop_control_mode_ != "one_stick") {
+    return false;
+  }
+  return (now - web_teleop_control_mode_last_received_).seconds() <=
+         web_teleop_signal_timeout_seconds_;
 }
 
 bool SweepingControllerNode::isSourceActive(
@@ -334,11 +405,13 @@ bool SweepingControllerNode::hasActiveWheelSource(const rclcpp::Time & now) cons
 std::pair<std::string, geometry_msgs::msg::Twist> SweepingControllerNode::selectToolCommand(
   const rclcpp::Time & now) const
 {
-  const std::unordered_map<std::string, const CommandSourceState *> sources{
+  std::unordered_map<std::string, const CommandSourceState *> sources{
     {"safety_stop", &tool_safety_source_},
-    {"joystick", &tool_joystick_source_},
     {"navigation", &tool_navigation_source_},
   };
+  if (!webTeleopOneStickActive(now)) {
+    sources.emplace("joystick", &tool_joystick_source_);
+  }
 
   const CommandSourceState * selected = nullptr;
   std::string selected_name{"idle"};
@@ -361,7 +434,7 @@ std::pair<std::string, geometry_msgs::msg::Twist> SweepingControllerNode::select
 bool SweepingControllerNode::hasActiveToolSource(const rclcpp::Time & now) const
 {
   return isSourceActive(tool_safety_source_, now) ||
-         isSourceActive(tool_joystick_source_, now) ||
+         (!webTeleopOneStickActive(now) && isSourceActive(tool_joystick_source_, now)) ||
          isSourceActive(tool_navigation_source_, now);
 }
 

@@ -39,3 +39,8 @@
     tool_sources.navigation.topic:                               navigation/cmd_vel              # Reference navigation topic name documented alongside the derived tool motion path.
     tool_sources.navigation.timeout_seconds:                     0.5                             # Derived autonomous tool command freshness window in seconds.
     tool_sources.navigation.priority:                            5                               # Derived autonomous tool motion priority below safety stop and joystick override.
+
+    # -- Web teleop mode ------------------------------------------------------
+    web_teleop.control_mode_topic:                                teleop/control_mode             # String topic published by the HTTP teleop backend: one_stick or two_stick.
+    web_teleop.tool_scale_topic:                                  teleop/tool_scale               # Float32 topic with the normalized 0..1 web tool-speed scale.
+    web_teleop.signal_timeout_seconds:                            1.0                             # Fall back to classic two-stick joystick behavior if web mode updates stop.
