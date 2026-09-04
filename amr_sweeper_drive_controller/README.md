@@ -30,7 +30,7 @@ This package provides the custom `ros2_control` differential-drive controller th
 - `max_linear_velocity`: default `1.0`
 - `max_angular_velocity`: default `1.57`
 - `slew_rate_limit_enabled`: default `true`
-- `max_wheel_velocity_change_rad_s_per_sec`: default `40.0`
+- `max_wheel_velocity_change_rad_s_per_sec`: default `200.0`
 
 ## Overview
 `amr_sweeper_drive_controller` owns the differential-drive kinematics and wheel-odometry publishing inside the shared `ros2_control` runtime. It subscribes to the selected `geometry_msgs/Twist` wheel-command stream from the sweeping controller, keeps the direct `drive_controller/cmd_vel` safety-stop override path, writes wheel velocity commands directly to the ODrive hardware interfaces, and publishes `nav_msgs/Odometry` on `drive_controller/odom`.

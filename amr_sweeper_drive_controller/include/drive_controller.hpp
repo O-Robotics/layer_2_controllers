@@ -101,7 +101,7 @@ private:
   bool enable_odom_tf_{false};
   bool speed_limit_enabled_{true};
   bool slew_rate_limit_enabled_{true};
-  double max_wheel_velocity_change_rad_s_per_sec_{40.0};
+  double max_wheel_velocity_change_rad_s_per_sec_{200.0};
 
   mutable std::mutex command_mutex_;
   TwistCommand latest_twist_command_;

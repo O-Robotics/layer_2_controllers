@@ -13,4 +13,4 @@
     low_pass_filter_enabled:             false                               # When true, ease twist-driven brush speed toward the target using a first-order low-pass filter.
     low_pass_time_constant_sec:          0.75                                # Larger values make twist-driven brush speed respond more slowly; 0 disables the low-pass effect even if enabled.
     slew_rate_limit_enabled:             true                                # When true, cap how quickly twist-driven brush speed may change between controller updates.
-    max_velocity_change_rad_s_per_sec:   70.0                                # Maximum allowed twist-driven brush speed change per second in joint rad/s.
+    max_velocity_change_rad_s_per_sec:   140.0                               # Fast half-second-or-less twist-driven brush speed ramp in joint rad/s per second.

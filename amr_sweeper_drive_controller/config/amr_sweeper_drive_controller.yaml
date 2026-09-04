@@ -22,4 +22,4 @@
     max_linear_velocity: 1.0                              # Hard forward/reverse command ceiling in m/s.
     max_angular_velocity: 1.57                            # Hard yaw-rate command ceiling in rad/s.
     slew_rate_limit_enabled: true                         # Smooth twist-driven wheel acceleration and deceleration while keeping direct stops immediate.
-    max_wheel_velocity_change_rad_s_per_sec: 40.0         # Maximum allowed twist-driven wheel speed change per second in joint rad/s.
+    max_wheel_velocity_change_rad_s_per_sec: 200.0        # Fast half-second-or-less twist-driven wheel speed ramp in joint rad/s per second.

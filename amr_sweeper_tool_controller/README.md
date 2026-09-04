@@ -25,7 +25,7 @@ This package provides the custom `ros2_control` controller that drives the Stead
 - `low_pass_filter_enabled`: default `false`
 - `low_pass_time_constant_sec`: default `0.75`
 - `slew_rate_limit_enabled`: default `true`
-- `max_velocity_change_rad_s_per_sec`: default `70.0`
+- `max_velocity_change_rad_s_per_sec`: default `140.0`
 
 ## Overview
 `amr_sweeper_tool_controller` replaces the old standalone tool bridge plus the generic forward controller. It subscribes to the sweeping-controller tool twist output, converts that twist into left/right brush velocities, and writes those values straight into the SteadyDrive velocity interfaces inside `ros2_control`.
