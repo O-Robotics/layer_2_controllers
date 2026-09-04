@@ -62,34 +62,14 @@ private:
     bool valid{false};
   };
 
-  struct WheelRampState
-  {
-    double start_left_velocity{0.0};
-    double start_right_velocity{0.0};
-    double target_left_velocity{0.0};
-    double target_right_velocity{0.0};
-    double output_left_velocity{0.0};
-    double output_right_velocity{0.0};
-    rclcpp::Time started_at{0, 0, RCL_ROS_TIME};
-    bool initialized{false};
-    bool active{false};
-  };
-
   void resetCommandState();
   void resetOdometryState();
-  void resetRampState();
   void onWheelCommand(const geometry_msgs::msg::Twist::SharedPtr message);
   void onDirectCommand(const geometry_msgs::msg::TwistStamped::SharedPtr message);
   bool isFresh(
     const rclcpp::Time & now,
     const rclcpp::Time & received_at,
     double timeout_sec) const;
-  void applyRampProfile(
-    double target_left_velocity,
-    double target_right_velocity,
-    const rclcpp::Time & now,
-    double & output_left_velocity,
-    double & output_right_velocity);
   void publishLatestOdometry();
   void publishOdometry(const OdometrySnapshot & snapshot);
   void publishOdometryTransform(const OdometrySnapshot & snapshot);
@@ -118,11 +98,6 @@ private:
   bool position_feedback_{false};
   bool enable_odom_tf_{false};
   bool speed_limit_enabled_{true};
-  bool ramp_enabled_{true};
-  double ramp_duration_sec_{0.5};
-  std::string ramp_profile_{"smootherstep"};
-  bool slew_rate_limit_enabled_{false};
-  double max_wheel_velocity_change_rad_s_per_sec_{0.0};
 
   mutable std::mutex command_mutex_;
   TwistCommand latest_twist_command_;
@@ -138,7 +113,6 @@ private:
   double angular_velocity_{0.0};
   double previous_left_position_rad_{0.0};
   double previous_right_position_rad_{0.0};
-  WheelRampState ramp_state_;
 
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr command_subscription_;
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr direct_command_subscription_;

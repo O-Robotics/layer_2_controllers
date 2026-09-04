@@ -47,21 +47,7 @@ private:
     bool valid{false};
   };
 
-  struct ToolRampState
-  {
-    double start_left_velocity{0.0};
-    double start_right_velocity{0.0};
-    double target_left_velocity{0.0};
-    double target_right_velocity{0.0};
-    double output_left_velocity{0.0};
-    double output_right_velocity{0.0};
-    rclcpp::Time started_at{0, 0, RCL_ROS_TIME};
-    bool initialized{false};
-    bool active{false};
-  };
-
   void resetCommandState();
-  void resetRampState();
   void setHardwareCommand(double left_velocity, double right_velocity);
   void onToolCommand(const geometry_msgs::msg::Twist::SharedPtr message);
   void onDirectCommand(const std_msgs::msg::Float64MultiArray::SharedPtr message);
@@ -69,12 +55,6 @@ private:
     const rclcpp::Time & now,
     const rclcpp::Time & received_at,
     double timeout_sec) const;
-  void applyRampProfile(
-    double target_left_velocity,
-    double target_right_velocity,
-    const rclcpp::Time & now,
-    double & output_left_velocity,
-    double & output_right_velocity);
 
   std::string left_joint_name_{"LeftBrush_joint"};
   std::string right_joint_name_{"RightBrush_joint"};
@@ -83,18 +63,10 @@ private:
   double max_tool_speed_rad_s_{35.0};
   double command_timeout_sec_{0.5};
   double direct_command_timeout_sec_{0.5};
-  bool ramp_enabled_{true};
-  double ramp_duration_sec_{0.5};
-  std::string ramp_profile_{"smootherstep"};
-  bool low_pass_filter_enabled_{false};
-  double low_pass_time_constant_sec_{0.75};
-  bool slew_rate_limit_enabled_{false};
-  double max_velocity_change_rad_s_per_sec_{0.0};
 
   mutable std::mutex command_mutex_;
   TwistCommand latest_twist_command_;
   DirectCommand latest_direct_command_;
-  ToolRampState ramp_state_;
 
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr twist_subscription_;
   rclcpp::Subscription<std_msgs::msg::Float64MultiArray>::SharedPtr direct_command_subscription_;

@@ -8,12 +8,3 @@
     max_tool_speed_rad_s:                35.0                                # Maximum brush motor speed commanded when tool twist inputs saturate.
     command_timeout_sec:                 0.5                                 # Zero tool commands if no fresh sweep-tool twist arrives within this window.
     direct_command_timeout_sec:          0.5                                 # Give the direct hardware-stop topic precedence while its zero command remains fresh.
-
-    # -- Tool speed change ramp ------------------------------------------------
-    ramp_enabled:                        true                                # Smooth twist-driven brush start/stop using the configured non-linear ramp profile.
-    ramp_duration_sec:                   0.5                                 # Complete brush speed changes in half a second.
-    ramp_profile:                        smootherstep                        # S-curve profile: gentle start, fast middle, soft settle onto target.
-    low_pass_filter_enabled:             false                               # Legacy low-pass parameter retained for compatibility; replaced by ramp_*.
-    low_pass_time_constant_sec:          0.75                                # Legacy low-pass parameter retained for compatibility; replaced by ramp_*.
-    slew_rate_limit_enabled:             false                               # Legacy linear slew parameter retained for compatibility; replaced by ramp_*.
-    max_velocity_change_rad_s_per_sec:   0.0                                 # Legacy linear slew parameter retained for compatibility; replaced by ramp_*.
