@@ -5,22 +5,22 @@ sweeping_modes:
       tool_sources.navigation.mode: mapping
       tool_sources.navigation.mapping_enabled: true
       tool_sources.navigation.linear_x_offset: 0.0
-      tool_sources.navigation.linear_x_from_linear_x_gain: 0.5
+      tool_sources.navigation.linear_x_from_linear_x_gain: 0.785
       tool_sources.navigation.linear_x_from_angular_z_gain: 0.0
       tool_sources.navigation.angular_z_offset: 0.0
       tool_sources.navigation.angular_z_from_linear_x_gain: 0.0
       tool_sources.navigation.angular_z_from_angular_z_gain: 0.5
-      tool_sources.navigation.constant_linear_x: 0.5
+      tool_sources.navigation.constant_linear_x: 0.3925
       tool_sources.navigation.constant_angular_z: 0.0
 
     - name: constant_inward
       tool_sources.navigation.mode: constant_speed
       tool_sources.navigation.mapping_enabled: true
       tool_sources.navigation.linear_x_offset: 0.0
-      tool_sources.navigation.linear_x_from_linear_x_gain: 0.5
+      tool_sources.navigation.linear_x_from_linear_x_gain: 0.785
       tool_sources.navigation.linear_x_from_angular_z_gain: 0.0
       tool_sources.navigation.angular_z_offset: 0.0
       tool_sources.navigation.angular_z_from_linear_x_gain: 0.0
       tool_sources.navigation.angular_z_from_angular_z_gain: 0.5
-      tool_sources.navigation.constant_linear_x: 0.5
+      tool_sources.navigation.constant_linear_x: 0.3925
       tool_sources.navigation.constant_angular_z: 0.0

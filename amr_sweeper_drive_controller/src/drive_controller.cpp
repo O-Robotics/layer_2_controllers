@@ -57,6 +57,10 @@ controller_interface::CallbackReturn DriveController::on_init()
   node->declare_parameter("speed_limit_enabled", speed_limit_enabled_);
   node->declare_parameter("max_linear_velocity", max_linear_velocity_);
   node->declare_parameter("max_angular_velocity", max_angular_velocity_);
+  node->declare_parameter("slew_rate_limit_enabled", slew_rate_limit_enabled_);
+  node->declare_parameter(
+    "max_wheel_velocity_change_rad_s_per_sec",
+    max_wheel_velocity_change_rad_s_per_sec_);
   node->declare_parameter("publish_rate", publish_rate_);
   node->declare_parameter("position_feedback", position_feedback_);
   node->declare_parameter("enable_odom_tf", enable_odom_tf_);
@@ -64,7 +68,8 @@ controller_interface::CallbackReturn DriveController::on_init()
   return controller_interface::CallbackReturn::SUCCESS;
 }
 
-controller_interface::InterfaceConfiguration DriveController::command_interface_configuration() const
+controller_interface::InterfaceConfiguration DriveController::command_interface_configuration()
+const
 {
   controller_interface::InterfaceConfiguration config;
   config.type = controller_interface::interface_configuration_type::INDIVIDUAL;
@@ -114,6 +119,9 @@ controller_interface::CallbackReturn DriveController::on_configure(
   speed_limit_enabled_ = node->get_parameter("speed_limit_enabled").as_bool();
   max_linear_velocity_ = node->get_parameter("max_linear_velocity").as_double();
   max_angular_velocity_ = node->get_parameter("max_angular_velocity").as_double();
+  slew_rate_limit_enabled_ = node->get_parameter("slew_rate_limit_enabled").as_bool();
+  max_wheel_velocity_change_rad_s_per_sec_ =
+    node->get_parameter("max_wheel_velocity_change_rad_s_per_sec").as_double();
   publish_rate_ = node->get_parameter("publish_rate").as_double();
   position_feedback_ = node->get_parameter("position_feedback").as_bool();
   enable_odom_tf_ = node->get_parameter("enable_odom_tf").as_bool();
@@ -129,7 +137,9 @@ controller_interface::CallbackReturn DriveController::on_configure(
     left_wheel_radius_multiplier_ <= 0.0 || right_wheel_radius_multiplier_ <= 0.0 ||
     wheel_separation_multiplier_ <= 0.0)
   {
-    RCLCPP_ERROR(node->get_logger(), "Drive-controller wheel geometry parameters must be positive.");
+    RCLCPP_ERROR(
+      node->get_logger(),
+      "Drive-controller wheel geometry parameters must be positive.");
     return controller_interface::CallbackReturn::ERROR;
   }
   if (command_timeout_sec_ < 0.0 || direct_command_timeout_sec_ < 0.0 || publish_rate_ <= 0.0) {
@@ -142,15 +152,25 @@ controller_interface::CallbackReturn DriveController::on_configure(
     RCLCPP_ERROR(node->get_logger(), "Drive-controller speed limits must be non-negative.");
     return controller_interface::CallbackReturn::ERROR;
   }
+  if (max_wheel_velocity_change_rad_s_per_sec_ < 0.0) {
+    RCLCPP_ERROR(node->get_logger(), "Drive-controller slew-rate limit must be non-negative.");
+    return controller_interface::CallbackReturn::ERROR;
+  }
   RCLCPP_INFO(
     node->get_logger(),
     "Drive-controller speed limit: enabled=%s, max_linear=%.3f m/s, max_angular=%.3f rad/s",
     speed_limit_enabled_ ? "true" : "false",
     max_linear_velocity_,
     max_angular_velocity_);
+  RCLCPP_INFO(
+    node->get_logger(),
+    "Drive-controller slew-rate limit: enabled=%s, max_wheel_dv=%.3f rad/s^2",
+    slew_rate_limit_enabled_ ? "true" : "false",
+    max_wheel_velocity_change_rad_s_per_sec_);
 
   resetCommandState();
   resetOdometryState();
+  resetFilteredVelocityState();
 
   command_subscription_ = node->create_subscription<geometry_msgs::msg::Twist>(
     input_topic_,
@@ -174,7 +194,8 @@ controller_interface::CallbackReturn DriveController::on_configure(
 
   RCLCPP_INFO(
     node->get_logger(),
-    "Drive controller configured: input='%s', direct='%s', odom='%s', controller='drive_controller'",
+    "Drive controller configured: input='%s', direct='%s', odom='%s', "
+    "controller='drive_controller'",
     input_topic_.c_str(),
     direct_command_topic_.c_str(),
     odom_topic_.c_str());
@@ -187,6 +208,7 @@ controller_interface::CallbackReturn DriveController::on_activate(
 {
   resetCommandState();
   resetOdometryState();
+  resetFilteredVelocityState();
   if (odom_publish_timer_) {
     odom_publish_timer_->reset();
   }
@@ -209,6 +231,7 @@ controller_interface::CallbackReturn DriveController::on_deactivate(
   if (odom_publish_timer_) {
     odom_publish_timer_->cancel();
   }
+  resetFilteredVelocityState();
 
   for (auto & command_interface : command_interfaces_) {
     const bool success = command_interface.set_value(0.0);
@@ -228,6 +251,7 @@ controller_interface::return_type DriveController::update(
 {
   double linear_command = 0.0;
   double angular_command = 0.0;
+  bool use_direct_command = false;
 
   {
     std::scoped_lock lock(command_mutex_);
@@ -237,15 +261,19 @@ controller_interface::return_type DriveController::update(
     {
       linear_command = latest_direct_command_.message.twist.linear.x;
       angular_command = latest_direct_command_.message.twist.angular.z;
-    } else if (
-      latest_twist_command_.valid &&
-      isFresh(time, latest_twist_command_.received_at, command_timeout_sec_))
-    {
-      linear_command = latest_twist_command_.message.linear.x;
-      angular_command = latest_twist_command_.message.angular.z;
+      use_direct_command = true;
+    } else {
+      const bool use_twist_command =
+        latest_twist_command_.valid &&
+        isFresh(time, latest_twist_command_.received_at, command_timeout_sec_);
+      if (use_twist_command) {
+        linear_command = latest_twist_command_.message.linear.x;
+        angular_command = latest_twist_command_.message.angular.z;
+      }
     }
   }
 
+  const double dt_seconds = std::max(period.seconds(), 0.0);
   const double effective_wheel_separation =
     wheel_separation_ * wheel_separation_multiplier_;
   const double left_wheel_radius =
@@ -299,6 +327,27 @@ controller_interface::return_type DriveController::update(
     }
   }
 
+  if (use_direct_command) {
+    filtered_left_wheel_velocity_rad_s_ = left_wheel_velocity;
+    filtered_right_wheel_velocity_rad_s_ = right_wheel_velocity;
+    filtered_velocity_initialized_ = true;
+  } else if (!filtered_velocity_initialized_) {
+    filtered_left_wheel_velocity_rad_s_ = left_wheel_velocity;
+    filtered_right_wheel_velocity_rad_s_ = right_wheel_velocity;
+    filtered_velocity_initialized_ = true;
+  } else {
+    filtered_left_wheel_velocity_rad_s_ = applySlewRateLimit(
+      filtered_left_wheel_velocity_rad_s_,
+      left_wheel_velocity,
+      dt_seconds);
+    filtered_right_wheel_velocity_rad_s_ = applySlewRateLimit(
+      filtered_right_wheel_velocity_rad_s_,
+      right_wheel_velocity,
+      dt_seconds);
+    left_wheel_velocity = filtered_left_wheel_velocity_rad_s_;
+    right_wheel_velocity = filtered_right_wheel_velocity_rad_s_;
+  }
+
   const bool left_ok = command_interfaces_[0].set_value(left_wheel_velocity);
   const bool right_ok = command_interfaces_[1].set_value(right_wheel_velocity);
   if (!left_ok || !right_ok) {
@@ -314,7 +363,6 @@ controller_interface::return_type DriveController::update(
   const double right_position_rad = state_interfaces_[2].get_optional().value_or(0.0);
   const double right_velocity_rad_s = state_interfaces_[3].get_optional().value_or(0.0);
 
-  const double dt_seconds = period.seconds();
   if (!odometry_initialized_) {
     previous_left_position_rad_ = left_position_rad;
     previous_right_position_rad_ = right_position_rad;
@@ -365,6 +413,13 @@ void DriveController::resetOdometryState()
   latest_odometry_snapshot_ = OdometrySnapshot{};
 }
 
+void DriveController::resetFilteredVelocityState()
+{
+  filtered_left_wheel_velocity_rad_s_ = 0.0;
+  filtered_right_wheel_velocity_rad_s_ = 0.0;
+  filtered_velocity_initialized_ = false;
+}
+
 void DriveController::onWheelCommand(const geometry_msgs::msg::Twist::SharedPtr message)
 {
   if (!message) {
@@ -398,6 +453,23 @@ bool DriveController::isFresh(
     return true;
   }
   return (now - received_at).seconds() <= timeout_sec;
+}
+
+double DriveController::applySlewRateLimit(
+  double current_value,
+  double target_value,
+  double dt_seconds) const
+{
+  if (
+    !slew_rate_limit_enabled_ || max_wheel_velocity_change_rad_s_per_sec_ <= 0.0 ||
+    dt_seconds <= 0.0)
+  {
+    return target_value;
+  }
+
+  const double max_delta = max_wheel_velocity_change_rad_s_per_sec_ * dt_seconds;
+  const double delta = std::clamp(target_value - current_value, -max_delta, max_delta);
+  return current_value + delta;
 }
 
 void DriveController::publishLatestOdometry()

@@ -64,9 +64,14 @@ private:
 
   void resetCommandState();
   void resetOdometryState();
+  void resetFilteredVelocityState();
   void onWheelCommand(const geometry_msgs::msg::Twist::SharedPtr message);
   void onDirectCommand(const geometry_msgs::msg::TwistStamped::SharedPtr message);
-  bool isFresh(const rclcpp::Time & now, const rclcpp::Time & received_at, double timeout_sec) const;
+  bool isFresh(
+    const rclcpp::Time & now,
+    const rclcpp::Time & received_at,
+    double timeout_sec) const;
+  double applySlewRateLimit(double current_value, double target_value, double dt_seconds) const;
   void publishLatestOdometry();
   void publishOdometry(const OdometrySnapshot & snapshot);
   void publishOdometryTransform(const OdometrySnapshot & snapshot);
@@ -95,6 +100,8 @@ private:
   bool position_feedback_{false};
   bool enable_odom_tf_{false};
   bool speed_limit_enabled_{true};
+  bool slew_rate_limit_enabled_{true};
+  double max_wheel_velocity_change_rad_s_per_sec_{40.0};
 
   mutable std::mutex command_mutex_;
   TwistCommand latest_twist_command_;
@@ -110,6 +117,9 @@ private:
   double angular_velocity_{0.0};
   double previous_left_position_rad_{0.0};
   double previous_right_position_rad_{0.0};
+  double filtered_left_wheel_velocity_rad_s_{0.0};
+  double filtered_right_wheel_velocity_rad_s_{0.0};
+  bool filtered_velocity_initialized_{false};
 
   rclcpp::Subscription<geometry_msgs::msg::Twist>::SharedPtr command_subscription_;
   rclcpp::Subscription<geometry_msgs::msg::TwistStamped>::SharedPtr direct_command_subscription_;

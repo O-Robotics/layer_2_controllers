@@ -52,7 +52,10 @@ private:
   void setHardwareCommand(double left_velocity, double right_velocity);
   void onToolCommand(const geometry_msgs::msg::Twist::SharedPtr message);
   void onDirectCommand(const std_msgs::msg::Float64MultiArray::SharedPtr message);
-  bool isFresh(const rclcpp::Time & now, const rclcpp::Time & received_at, double timeout_sec) const;
+  bool isFresh(
+    const rclcpp::Time & now,
+    const rclcpp::Time & received_at,
+    double timeout_sec) const;
   double applyLowPassFilter(double current_value, double target_value, double dt_seconds) const;
   double applySlewRateLimit(double current_value, double target_value, double dt_seconds) const;
 
@@ -65,8 +68,8 @@ private:
   double direct_command_timeout_sec_{0.5};
   bool low_pass_filter_enabled_{false};
   double low_pass_time_constant_sec_{0.75};
-  bool slew_rate_limit_enabled_{false};
-  double max_velocity_change_rad_s_per_sec_{20.0};
+  bool slew_rate_limit_enabled_{true};
+  double max_velocity_change_rad_s_per_sec_{70.0};
 
   mutable std::mutex command_mutex_;
   TwistCommand latest_twist_command_;

@@ -10,7 +10,7 @@
     direct_command_timeout_sec:          0.5                                 # Give the direct hardware-stop topic precedence while its zero command remains fresh.
     
     # -- Tool speed change filters --------------------------------------------    
-    low_pass_filter_enabled:             true                                # When true, ease twist-driven brush speed toward the target using a first-order low-pass filter.
-    low_pass_time_constant_sec:          2.0                                 # Larger values make twist-driven brush speed respond more slowly; 0 disables the low-pass effect even if enabled.
+    low_pass_filter_enabled:             false                               # When true, ease twist-driven brush speed toward the target using a first-order low-pass filter.
+    low_pass_time_constant_sec:          0.75                                # Larger values make twist-driven brush speed respond more slowly; 0 disables the low-pass effect even if enabled.
     slew_rate_limit_enabled:             true                                # When true, cap how quickly twist-driven brush speed may change between controller updates.
-    max_velocity_change_rad_s_per_sec:   10.0                                # Maximum allowed twist-driven brush speed change per second in joint rad/s.
+    max_velocity_change_rad_s_per_sec:   70.0                                # Maximum allowed twist-driven brush speed change per second in joint rad/s.
