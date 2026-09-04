@@ -29,8 +29,11 @@ This package provides the custom `ros2_control` differential-drive controller th
 - `speed_limit_enabled`: default `true`
 - `max_linear_velocity`: default `1.0`
 - `max_angular_velocity`: default `1.57`
-- `slew_rate_limit_enabled`: default `true`
-- `max_wheel_velocity_change_rad_s_per_sec`: default `200.0`
+- `ramp_enabled`: default `true`
+- `ramp_duration_sec`: default `0.5`
+- `ramp_profile`: default `smootherstep`
+- `slew_rate_limit_enabled`: legacy compatibility parameter, unused by the S-curve ramp
+- `max_wheel_velocity_change_rad_s_per_sec`: legacy compatibility parameter, unused by the S-curve ramp
 
 ## Overview
 `amr_sweeper_drive_controller` owns the differential-drive kinematics and wheel-odometry publishing inside the shared `ros2_control` runtime. It subscribes to the selected `geometry_msgs/Twist` wheel-command stream from the sweeping controller, keeps the direct `drive_controller/cmd_vel` safety-stop override path, writes wheel velocity commands directly to the ODrive hardware interfaces, and publishes `nav_msgs/Odometry` on `drive_controller/odom`.
@@ -41,11 +44,12 @@ generators such as teleop and Nav2; this controller only enforces the absolute
 chassis command ceiling. Per-wheel overspeed protection belongs to the ODrive
 hardware package.
 
-Twist-driven wheel commands are slew-rate limited after the chassis clamp and
-differential-drive conversion, which smooths both acceleration and release-to-zero
-deceleration for frontend and joystick teleop. Direct commands on
-`drive_controller/cmd_vel` remain immediate so safety-stop and hardware-stop paths
-are not delayed by smoothing.
+Twist-driven wheel commands run through a half-second `smootherstep` S-curve ramp
+after the chassis clamp and differential-drive conversion. The ramp gives
+frontend and joystick teleop a gentle start, faster middle response, and soft
+settle on release-to-zero without extending the move over multiple seconds.
+Direct commands on `drive_controller/cmd_vel` remain immediate so safety-stop and
+hardware-stop paths are not delayed by smoothing.
 
 ## Notes
 - Default input topic: `sweeping_controller/cmd_vel_drive`.
