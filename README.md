@@ -40,3 +40,7 @@ Layer 2 sits between the hardware interfaces in layer 1 and the higher-level dec
 - Layer 2 assumes the layer 1 hardware bringup has already activated `ros2_control` and exposed the raw hardware feedback needed for `drive_controller` and `tool_controller`.
 - The attitude controller consumes `imu/data_raw`, which resolves to `/amr_sweeper/imu/data_raw` under the default namespace, and can publish shared safety-stop requests into the namespaced layer 2 stop path.
 - The collision detector uses enabled IMU inputs immediately and keeps the currently unavailable motor-force proxy inputs disabled by default until layer 1 telemetry is exposed.
+
+## Controlled engineering documentation
+
+The controlled AMR-Sweeper software design, requirements traceability, verification references, and release/configuration records for this repository are maintained in SharePoint under [07 - Software Development / 03 - Layer 2 - Controllers and Safety](https://orobotics.sharepoint.com/sites/AMRSweeper/Shared%20Documents/07%20-%20Software%20Development/03%20-%20Layer%202%20-%20Controllers%20and%20Safety). GitHub remains the source of truth for implementation source code; SharePoint is the controlled engineering and traceability record.
