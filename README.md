@@ -43,4 +43,11 @@ Layer 2 sits between the hardware interfaces in layer 1 and the higher-level dec
 
 ## Controlled engineering documentation
 
-The controlled AMR-Sweeper software design, requirements traceability, verification references, and release/configuration records for this repository are maintained in SharePoint under [07 - Software Development / 03 - Layer 2 - Controllers and Safety](https://orobotics.sharepoint.com/sites/AMRSweeper/Shared%20Documents/07%20-%20Software%20Development/03%20-%20Layer%202%20-%20Controllers%20and%20Safety). GitHub remains the source of truth for implementation source code; SharePoint is the controlled engineering and traceability record.
+The controlled AMR-Sweeper software records for this repository are maintained in SharePoint under the corresponding folder in `07 - Software Development`. GitHub remains the source of truth for implementation source code; SharePoint is the controlled engineering and traceability record.
+
+Controlled records:
+- `SWD_13000` - Software Architecture
+- `SWR_13001` - Software Requirements Traceability Matrix (PDS / DRA / DFMEA -> software -> verification)
+- `SWD_13002` - Software Configuration and Release Register
+
+See the repository-specific SharePoint folder from the existing controlled-documentation link/history for the current revision of these records.
