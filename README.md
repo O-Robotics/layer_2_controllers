@@ -39,7 +39,9 @@ Layer 2 sits between the hardware interfaces in layer 1 and the higher-level dec
 - Layer 1 owns the `ros2_control` runtime, the hardware components, and `joint_broad`.
 - Layer 2 assumes the layer 1 hardware bringup has already activated `ros2_control` and exposed the raw hardware feedback needed for `drive_controller` and `tool_controller`.
 - The attitude controller consumes `imu/data_raw`, which resolves to `/amr_sweeper/imu/data_raw` under the default namespace, and can publish shared safety-stop requests into the namespaced layer 2 stop path.
-- The collision detector uses enabled IMU inputs immediately and keeps the currently unavailable motor-force proxy inputs disabled by default until layer 1 telemetry is exposed.
+- The collision detector consumes both the main Layer 1 IMU and the ToolMount micro-ROS raw IMU at `/amr_sweeper/toolmount/imu/data_raw`. The ToolMount firmware publishes acceleration and angular velocity only and marks orientation unavailable.
+- The ToolMount raw IMU is intentionally not connected to the attitude controller until a ToolMount orientation estimator provides a valid quaternion.
+- The currently unavailable motor-force proxy inputs remain disabled by default until layer 1 telemetry is exposed.
 
 ## Controlled engineering documentation
 
