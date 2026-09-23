@@ -19,15 +19,15 @@
     # -- IMU inputs -----------------------------------------------------------
     imu_inputs.configured:
       - main_imu                                                   # Existing JY901 IMU from layer 1.
-      - rear_imu_todo                                              # TODO: enable when the second IMU topic is added to the workspace.
+      - toolmount_imu                                              # ToolMount LSM6DSV16X via micro-ROS.
 
     imu_inputs.main_imu.enabled:                 true
     imu_inputs.main_imu.topic:                   imu/data_raw
     imu_inputs.main_imu.acceleration_threshold_mps2: 14.0          # Tune against measured collision spikes on the robot.
 
-    imu_inputs.rear_imu_todo.enabled:            false
-    imu_inputs.rear_imu_todo.topic:              TODO/rear_imu/data_raw
-    imu_inputs.rear_imu_todo.acceleration_threshold_mps2: 14.0     # TODO: confirm the topic and tune after hardware integration.
+    imu_inputs.toolmount_imu.enabled:             true
+    imu_inputs.toolmount_imu.topic:               /amr_sweeper/toolmount/imu/data_raw
+    imu_inputs.toolmount_imu.acceleration_threshold_mps2: 14.0     # Initial parity with main IMU; tune on ToolMount hardware.
 
     # -- Motor-force proxy inputs --------------------------------------------
     # These inputs subscribe to sensor_msgs/JointState and use the configured
