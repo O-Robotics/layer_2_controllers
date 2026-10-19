@@ -157,7 +157,7 @@ private:
   std::string direct_motor_stop_last_failure_message_;
   std::string direct_motor_stop_confirmation_status_{"idle"};
   rclcpp::Time button_last_status_frame_time_{0, 0, RCL_ROS_TIME};
-  uint16_t button_last_heartbeat_counter_{0U};
+  bool button_heartbeat_healthy_{false};
   bool button_heartbeat_seen_{false};
   rclcpp::Time latched_stop_since_{0, 0, RCL_ROS_TIME};
 

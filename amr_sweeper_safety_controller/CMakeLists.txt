@@ -49,6 +49,11 @@ install(DIRECTORY config launch
 )
 
 if(BUILD_TESTING)
+  enable_testing()
+  add_executable(button_can_protocol_test test/button_can_protocol_test.cpp)
+  target_include_directories(button_can_protocol_test PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/include)
+  target_compile_features(button_can_protocol_test PRIVATE cxx_std_17)
+  add_test(NAME button_can_protocol_test COMMAND button_can_protocol_test)
   find_package(ament_lint_auto REQUIRED)
   set(ament_cmake_copyright_FOUND TRUE)
   set(ament_cmake_cpplint_FOUND TRUE)

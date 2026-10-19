@@ -36,9 +36,9 @@ This package latches shared stop requests and forces the AMR Sweeper to a stop f
 - Requests ODrive encoder-estimate feedback (`cmd_id 0x09` via RTR) and verifies each wheel motor reaches the configured stopped-speed threshold while the stop is latched.
 - Sends Steadydrive stop (`0x81`) and motor-off (`0x80`) frames directly to the configured tool-motor CAN IDs while the stop is latched.
 - Requests Steadydrive motor state 2 (`0x9C`) and verifies each tool motor reaches the configured stopped-speed threshold while the stop is latched.
-- Monitors the configured button-module CAN base ID from the YAML config and latches a stop when it receives either the button event frame (`data[0] = 0x01` on `base_id`) or a status frame with pressed bits set (`data[1] & 0x11` on `base_id + 1`).
+- Monitors Button pressed events on `base_id + 2` (`data[0] = 0x01`) and canonical 8-byte heartbeats on `base_id + 1`. Button state is `data[2]`; flags are little-endian `data[3..4]` (pressed bits 0/4 and fail-safe bit 8). Bytes 6/7 are CAN RX overflow diagnostics, not a heartbeat sequence counter.
 - Also watches the ODrive and Steadydrive CAN IDs for e-stop/stop/off commands (ODrive `cmd_id 0x02`, Steadydrive `0x81`/`0x80`) that this controller did not itself send, and latches a safety stop when one is observed. This catches the button module's own direct-to-motor e-stop wiring even if its `base_id`/`base_id + 1` report to this controller is missed, dropped, or too short-lived to be seen (`external_can_stop_monitor_enabled`).
-- Watches the button status heartbeat on `base_id + 1` and latches a safety stop if that heartbeat disappears past the configured YAML timeout.
+- Fails closed on startup if no valid heartbeat has ever arrived, or on unhealthy/pressed status or stale heartbeat beyond the configured timeout. A latched stop remains until explicit reset; reset refuses missing, stale or unhealthy Button status. Startup inhibition and host-side stops are not evidence of a motor-native power-loss watchdog.
 - Publishes internally generated stops such as button-module events, button heartbeat loss, and the node watchdog into `safety_msgs/stop` as well so Layer 0 schedule logging records them too.
 - Runs an internal watchdog thread that publishes a safety stop and sends direct motor-stop commands if the node stops making progress for the configured timeout.
 - Publishes `safety_controller/status` as `diagnostic_msgs/msg/DiagnosticArray`.
@@ -53,5 +53,12 @@ This package latches shared stop requests and forces the AMR Sweeper to a stop f
 - `amr_sweeper_sweeping_controller` should assign the `safety_controller/cmd_vel_safety_stop` input the highest priority in layer 2 for both wheel and tool arbitration.
 - Recovery still happens through the existing Layer 1 `clear_safety_stop` services so the ODrive e-stop/error latch is cleared and the Steadydrive motors are re-enabled with their native bringup path.
 - The current default `button_can_base_id` is `0x200`, which matches the firmware fallback when no stored `CFG_CAN_ID` is present; if your flashed button module uses another base ID, update the Layer 2 parameter to match it.
-- The current button firmware documents `CFG_STATUS_MS` defaulting to `5000 ms`, so the default watchdog timeout here is `12000 ms` to allow missed frames without masking a real module disappearance.
+- The current Button firmware `OR_DEFAULT_HEARTBEAT_MS` is `5000 ms` and the configured SBC timeout is `12000 ms`; these are development configuration values, not approved safety-response times. Valid Button flash CONFIG and actual runtime parameters are required for operation.
+- **Development gate:** Native ROS 2 build/integration, CAN fault injection, post-reset behavior, target firmware identity and independent ODrive/SteadyDrive controller watchdog behavior with SBC power removed remain unverified. Never infer physical stopping distance from zero commands.
+- Run isolated protocol regression with `g++ -std=c++17 -Wall -Wextra -Werror -pedantic -Iinclude test/button_can_protocol_test.cpp -o /tmp/button_can_protocol_test && /tmp/button_can_protocol_test`.
+
+## WORK_STATUS — 2026-10-19, Button communication alignment
+
+- Draft branch `fix/button-can-heartbeat-stop-20261019` corrects event/heartbeat frame interpretation and adds fail-closed monitoring and reset gating. Host parser regression passed with g++ 12; ROS 2 Jazzy build, actual CAN interface, target firmware and motor-native watchdog not available in this isolated environment and remain NOT RUN.
+- **Safety finding:** Button status at 5000 ms and 12000 ms timeout requires a separate hazard-based Safety timing decision; deployment/release is blocked until hardware-in-loop and controller-independent power-loss stopping are demonstrated. Do not merge as release-authorized solely from host tests.
 - Direct Nav2 goal cancellation is still an open follow-up integration.

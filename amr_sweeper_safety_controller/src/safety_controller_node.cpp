@@ -1,4 +1,5 @@
 #include "safety_controller_node.hpp"
+#include "button_can_protocol.hpp"
 
 #include <algorithm>
 #include <array>
@@ -34,10 +35,6 @@ constexpr uint8_t kOdriveGetEncoderEstimatesCommandId = 0x09;
 constexpr uint8_t kSteadydriveMotorOffCommand = 0x80;
 constexpr uint8_t kSteadydriveMotorStopCommand = 0x81;
 constexpr uint8_t kSteadydriveReadState2Command = 0x9C;
-constexpr uint8_t kButtonPressedEvent = 0x01;
-constexpr uint8_t kButtonPressedBitMask = 0x11;
-constexpr uint8_t kButtonHeartbeatStatusOffsetMsb = 6;
-constexpr uint8_t kButtonHeartbeatStatusOffsetLsb = 7;
 
 diagnostic_msgs::msg::KeyValue keyValue(const std::string & key, const std::string & value)
 {
@@ -317,8 +314,8 @@ void SafetyControllerNode::loadParameters()
   odrive_can_state_.accepted_can_ids.clear();
   steadydrive_can_state_.accepted_can_ids.clear();
   button_can_state_.accepted_can_ids = {
-    button_can_base_id_,
-    (button_can_base_id_ + 1U) & 0x7FFU};
+    (button_can_base_id_ + 1U) & 0x7FFU,
+    (button_can_base_id_ + 2U) & 0x7FFU};
   odrive_feedback_can_state_.accepted_can_ids.clear();
   steadydrive_feedback_can_state_.accepted_can_ids.clear();
   for (const auto node_id : odrive_node_ids_) {
@@ -670,16 +667,15 @@ void SafetyControllerNode::pollSteadydriveCanFrames()
 
 void SafetyControllerNode::checkButtonHeartbeatWatchdog()
 {
-  if (!button_can_monitor_enabled_ || latched_stop_active_ || !button_heartbeat_seen_) {
+  if (!button_can_monitor_enabled_ || latched_stop_active_) {
     return;
   }
 
+  // Fail closed on startup: a never-seen Button must not authorize motion.
   const auto elapsed = now() - button_last_status_frame_time_;
-  if (elapsed.nanoseconds() < 0) {
-    return;
-  }
-
-  if (elapsed > rclcpp::Duration::from_seconds(
+  if (!button_heartbeat_seen_ || !button_heartbeat_healthy_ ||
+    elapsed.nanoseconds() < 0 ||
+    elapsed > rclcpp::Duration::from_seconds(
       static_cast<double>(button_heartbeat_timeout_ms_) / 1000.0))
   {
     amr_sweeper_safety_msgs::msg::SafetyStop stop_msg;
@@ -1181,10 +1177,7 @@ bool SafetyControllerNode::sendDirectMotorStopCommands(std::string & failure_mes
 
 bool SafetyControllerNode::parseButtonCanFrame(uint32_t can_id, const std::vector<uint8_t> & payload)
 {
-  const uint32_t event_can_id = button_can_base_id_;
-  const uint32_t status_can_id = (button_can_base_id_ + 1U) & 0x7FFU;
-
-  if (can_id == event_can_id && !payload.empty() && payload[0] == kButtonPressedEvent) {
+  if (button_can::isPressedEvent(can_id, button_can_base_id_, payload)) {
     amr_sweeper_safety_msgs::msg::SafetyStop stop_msg;
     stop_msg.stamp = toBuiltinTime(now());
     stop_msg.sender = "button_module_can";
@@ -1193,19 +1186,21 @@ bool SafetyControllerNode::parseButtonCanFrame(uint32_t can_id, const std::vecto
     return true;
   }
 
-  if (can_id == status_can_id && payload.size() >= 8) {
-    button_last_status_frame_time_ = now();
-    button_last_heartbeat_counter_ = static_cast<uint16_t>(
-      (static_cast<uint16_t>(payload[kButtonHeartbeatStatusOffsetMsb]) << 8) |
-      static_cast<uint16_t>(payload[kButtonHeartbeatStatusOffsetLsb]));
-    button_heartbeat_seen_ = true;
+  button_can::StatusFrame status;
+  if (!button_can::parseStatusFrame(can_id, button_can_base_id_, payload, status)) {
+    return false;
   }
 
-  if (can_id == status_can_id && payload.size() >= 2 && (payload[1] & kButtonPressedBitMask) != 0U) {
+  button_last_status_frame_time_ = now();
+  button_heartbeat_seen_ = true;
+  button_heartbeat_healthy_ = status.healthy() && !status.stopAsserted();
+
+  if (status.stopAsserted() || !status.healthy()) {
     amr_sweeper_safety_msgs::msg::SafetyStop stop_msg;
     stop_msg.stamp = toBuiltinTime(now());
     stop_msg.sender = "button_module_can";
-    stop_msg.reason = "physical safety stop button pressed (status frame)";
+    stop_msg.reason = status.stopAsserted() ?
+      "physical stop button asserted (status frame)" : "button module status not healthy";
     publishInternalStopEvent(stop_msg);
     return true;
   }
@@ -1313,6 +1308,19 @@ void SafetyControllerNode::resetLatchedStopService(
   noteProgress();
   (void)request;
   std::string failure_message;
+  if (button_can_monitor_enabled_) {
+    pollButtonCanFrames();
+    const auto age = now() - button_last_status_frame_time_;
+    if (!button_heartbeat_seen_ || !button_heartbeat_healthy_ ||
+      age.nanoseconds() < 0 ||
+      age > rclcpp::Duration::from_seconds(
+        static_cast<double>(button_heartbeat_timeout_ms_) / 1000.0))
+    {
+      response->success = false;
+      response->message = "Button heartbeat missing, stale, pressed or unhealthy";
+      return;
+    }
+  }
   if (!clearHardwareSafetyStops(failure_message)) {
     response->success = false;
     response->message = failure_message;
@@ -1328,10 +1336,12 @@ void SafetyControllerNode::enableControllerService(
   std::shared_ptr<std_srvs::srv::SetBool::Response> response)
 {
   noteProgress();
-  enabled_ = request->data;
-  if (!enabled_) {
-    clearLatchedStop();
+  if (!request->data && button_can_monitor_enabled_) {
+    response->success = false;
+    response->message = "Button supervision may not be disabled while enabled in configuration";
+    return;
   }
+  enabled_ = request->data;
 
   response->success = true;
   response->message = enabled_ ? "safety controller enabled" : "safety controller disabled";
